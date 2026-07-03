@@ -5,7 +5,6 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { syncUserWithDb } from "@/app/lib/user-sync";
 import { ROUTES } from "@/app/lib/constants";
-import { ROLES } from "@/app/lib/roles";
 
 /**
  * Returns the application user (DB user)
@@ -36,14 +35,5 @@ export async function getCurrentDbUser() {
 export async function requireUser() {
   const user = await getCurrentDbUser();
   if (!user) redirect(ROUTES.SIGN_IN);
-  return user;
-}
-
-/**
- * Require admin role
- */
-export async function requireAdmin() {
-  const user = await requireUser();
-  if (user.role !== ROLES.ADMIN) redirect(ROUTES.HOME);
   return user;
 }

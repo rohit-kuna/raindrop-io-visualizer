@@ -1,6 +1,6 @@
-CREATE USER demodb WITH ENCRYPTED PASSWORD 'demodb';
-CREATE DATABASE demodb with owner demodb;
+CREATE USER raindrop WITH ENCRYPTED PASSWORD 'raindrop';
+CREATE DATABASE raindrop with owner raindrop;
 
-\connect demodb;
+\connect raindrop;
 
-GRANT ALL PRIVILEGES ON DATABASE demodb TO demodb;
+GRANT ALL PRIVILEGES ON DATABASE raindrop TO raindrop;

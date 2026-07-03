@@ -2,7 +2,6 @@ import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { ROLES } from "@/app/lib/roles";
 
 /**
  * Ensures the logged-in Clerk user exists in DB.
@@ -25,7 +24,6 @@ export async function syncUserWithDb() {
     .values({
       clerkUserId,
       email,
-      role: ROLES.USER,
     })
     .onConflictDoNothing({ target: users.clerkUserId });
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Box } from "lucide-react";
+import { Waypoints } from "lucide-react";
 
 type AppLogoProps = {
   href?: string;
@@ -12,9 +12,9 @@ export function AppLogo({ href = "/" }: AppLogoProps) {
       className="inline-flex h-9 shrink-0 items-center gap-5 font-semibold leading-none"
     >
       <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <Box className="h-4 w-4" />
+        <Waypoints className="h-4 w-4" />
       </div>
-      <span className="text-lg tracking-tight">Acme</span>
+      <span className="text-lg tracking-tight">Raindrop Graph</span>
     </Link>
   );
 }
