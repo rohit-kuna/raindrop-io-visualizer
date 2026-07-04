@@ -426,7 +426,7 @@ export function Graph({
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
         warmupTicks={100}
-        enableNodeDrag={supportsHover}
+        enableNodeDrag
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
       />
