@@ -12,7 +12,6 @@ export const PUBLIC_ROUTE_PATTERNS = [
   `${ROUTES.SIGN_IN}(.*)`,
   `${ROUTES.SIGN_UP}(.*)`,
   ROUTES.SERVICE_UNAVAILABLE,
-  "/api/cron(.*)",
 ] as const;
 
 export const POST_AUTH_REDIRECT = ROUTES.HOME;
