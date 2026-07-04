@@ -25,6 +25,7 @@ import {
 } from "@/lib/layout/tagNetwork";
 import type { GraphData, PositionedRaindrop } from "@/lib/types";
 import { useContainerSize } from "@/lib/hooks/useContainerSize";
+import { useSupportsHover } from "@/lib/hooks/useSupportsHover";
 import { fitCircleLabelFontSize } from "@/lib/canvas/fitCircleLabel";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
@@ -88,6 +89,7 @@ export function SolarSystemGraph({
   const fgRef = useRef<ForceGraphMethods<SolarSystemNode, SolarLink> | undefined>(undefined);
   const [hoveredNode, setHoveredNode] = useState<SolarSystemNode | null>(null);
   const { width, height } = useContainerSize(containerRef);
+  const supportsHover = useSupportsHover();
   const { resolvedTheme } = useTheme();
   // The canvas background follows the page theme, so link/orbit lines need to flip too — white
   // lines are invisible against the light-mode background.
@@ -172,21 +174,35 @@ export function SolarSystemGraph({
       }
       if (cancelled) return;
 
+      // Each sun's planets orbit out to `orbitRadius`, so the sun's own core radius understates
+      // how much space it actually occupies on screen — colliding on core radius alone let
+      // neighboring suns settle close enough that their orbit rings (and the halo glow drawn
+      // around each sun) visually overlapped into a cluttered mess. Collide on the *orbital
+      // extent* instead so suns keep clear space between their rings.
+      const maxOrbitRadiusBySunId = new Map<string, number>();
+      for (const node of solar.nodes) {
+        if (node.kind !== "planet") continue;
+        const current = maxOrbitRadiusBySunId.get(node.homeSunId) ?? 0;
+        if (node.orbitRadius > current) maxOrbitRadiusBySunId.set(node.homeSunId, node.orbitRadius);
+      }
+
       fg.d3Force(
         "charge",
-        forceManyBody<FGNode>().strength((n) => (isSun(n as unknown as SolarSystemNode) ? -450 : 0))
+        forceManyBody<FGNode>().strength((n) => (isSun(n as unknown as SolarSystemNode) ? -600 : 0))
       );
       fg.d3Force(
         "collide",
         forceCollide<FGNode>((n) => {
           const node = n as unknown as SolarSystemNode;
-          return isSun(node) ? node.radius + 30 : 0;
+          if (!isSun(node)) return 0;
+          const orbitExtent = maxOrbitRadiusBySunId.get(node.id) ?? 0;
+          return Math.max(node.radius + 30, orbitExtent + 40);
         })
       );
       const linkForce = fg.d3Force("link");
       if (linkForce) {
         linkForce
-          .distance((l: unknown) => ((l as SolarLink).kind === "cross-tag" ? 40 : 150))
+          .distance((l: unknown) => ((l as SolarLink).kind === "cross-tag" ? 55 : 220))
           .strength((l: unknown) => {
             const link = l as SolarLink;
             return link.kind === "cooccurrence" ? Math.min(0.6, link.weight / 15) : 0;
@@ -266,6 +282,21 @@ export function SolarSystemGraph({
     };
   }, [solar, sunById]);
 
+  // Favicons are fetched lazily and cached by domain — react-force-graph keeps ticking every
+  // frame regardless (see the "orbit" force above), so once an <img> finishes loading it just
+  // gets picked up on the next draw without any extra invalidation plumbing.
+  const iconCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const getFaviconImage = useCallback((domain: string | null): HTMLImageElement | null => {
+    if (!domain) return null;
+    const cache = iconCacheRef.current;
+    const cached = cache.get(domain);
+    if (cached) return cached.complete && cached.naturalWidth > 0 ? cached : null;
+    const img = new Image();
+    img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    cache.set(domain, img);
+    return null;
+  }, []);
+
   const isNodeRelated = useCallback(
     (node: SolarSystemNode): boolean => {
       return node.kind === "sun" && (selectionRelatedSunIds?.has(node.id) ?? false);
@@ -286,7 +317,17 @@ export function SolarSystemGraph({
       }
       if (hoveredNode && node.id !== hoveredNode.id) {
         const neighbors = neighborsByNodeId.get(hoveredNode.id);
-        if (!neighbors?.has(node.id)) return true;
+        const isNeighbor = neighbors?.has(node.id) ?? false;
+        // A planet only ever links to *other* tags it carries (cross-tag), never to its own
+        // home sun — there's no edge in the data for "this planet orbits this sun". Without this
+        // check, hovering a sun would dim away every one of its own orbiting planets (and hovering
+        // a planet would dim its own home sun), since the link-based neighbor index has no idea
+        // they're related.
+        const isHomeSunFamily =
+          (hoveredNode.kind === "sun" && node.kind === "planet" && node.homeSunId === hoveredNode.id) ||
+          (hoveredNode.kind === "planet" && node.kind === "sun" && node.id === hoveredNode.homeSunId) ||
+          (hoveredNode.kind === "planet" && node.kind === "planet" && node.homeSunId === hoveredNode.homeSunId);
+        if (!isNeighbor && !isHomeSunFamily) return true;
       }
       return false;
     },
@@ -381,10 +422,48 @@ export function SolarSystemGraph({
         ctx.beginPath();
         ctx.arc(x, y, isHovered ? RAINDROP_DOT_RADIUS + 1.5 : RAINDROP_DOT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
+
+        // Title + favicon label: only for planets in focus (i.e. belonging to a selected tag) —
+        // showing this for every planet at once would bury the graph in overlapping text.
+        if (!dimmed && selectionRelevantNodeIds?.has(n.id)) {
+          const iconSize = 5;
+          const gap = 2;
+          let textX = x + RAINDROP_DOT_RADIUS + gap;
+
+          const icon = getFaviconImage(n.domain);
+          if (icon) {
+            ctx.globalAlpha = 0.95;
+            ctx.drawImage(icon, textX, y - iconSize / 2, iconSize, iconSize);
+            textX += iconSize + gap;
+          }
+
+          ctx.font = "500 4px sans-serif";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          let title = n.title;
+          const maxWidth = 60;
+          while (title.length > 1 && ctx.measureText(title).width > maxWidth) {
+            title = title.slice(0, -1);
+          }
+          if (title !== n.title) title = `${title.trimEnd()}…`;
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = `rgba(${lineRgb},0.9)`;
+          ctx.fillText(title, textX, y);
+        }
       }
       ctx.globalAlpha = 1;
     },
-    [hoveredNode, isNodeDimmed, isNodeRelated, sunById, lineRgb, hoverFillColor, hoverLabelColor]
+    [
+      hoveredNode,
+      isNodeDimmed,
+      isNodeRelated,
+      sunById,
+      lineRgb,
+      hoverFillColor,
+      hoverLabelColor,
+      selectionRelevantNodeIds,
+      getFaviconImage,
+    ]
   );
 
   const linkWidth = useCallback(
@@ -413,6 +492,10 @@ export function SolarSystemGraph({
 
   const handleNodeHover = useCallback(
     (node: FGNode | null) => {
+      // On touch devices, a tap fires this hover callback before the click callback — without
+      // this guard, the tapped node would get stuck showing the desktop "hovered" dim/highlight
+      // treatment instead of just performing the tap's click action (see useSupportsHover).
+      if (!supportsHover) return;
       const n = node as unknown as (SolarSystemNode & PositionedFGNode) | null;
       setHoveredNode(n);
 
@@ -436,7 +519,7 @@ export function SolarSystemGraph({
         onHoverTag(n.tagId);
       }
     },
-    [onHoverRaindrop, onHoverTag]
+    [onHoverRaindrop, onHoverTag, supportsHover]
   );
 
   const handleNodeClick = useCallback(
@@ -478,7 +561,7 @@ export function SolarSystemGraph({
         // positions instead; d3ReheatSimulation() + cooldownTime=Infinity below then animate
         // them into the correct layout live, once the real forces are in place.
         warmupTicks={0}
-        enableNodeDrag={true}
+        enableNodeDrag={false}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
       />

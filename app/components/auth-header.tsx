@@ -72,7 +72,7 @@ export function AuthHeader() {
   }
 
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <header className="border-b border-border/50 bg-background/40 shadow-sm backdrop-blur-xl backdrop-saturate-150 supports-backdrop-filter:bg-background/30">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-4 sm:gap-3 sm:px-6 lg:max-w-none lg:px-10 xl:px-14 2xl:px-20">
         <div className="flex items-center gap-2 sm:gap-8">
           <AppLogo href={ROUTES.DASHBOARD} />

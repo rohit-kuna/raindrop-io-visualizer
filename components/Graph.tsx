@@ -21,6 +21,7 @@ import {
 } from "@/lib/layout/tagNetwork";
 import type { GraphData, PositionedRaindrop } from "@/lib/types";
 import { useContainerSize } from "@/lib/hooks/useContainerSize";
+import { useSupportsHover } from "@/lib/hooks/useSupportsHover";
 import { fitCircleLabelFontSize } from "@/lib/canvas/fitCircleLabel";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
@@ -69,6 +70,7 @@ export function Graph({
   const fgRef = useRef<ForceGraphMethods<TagNetworkNode, TagNetworkLink> | undefined>(undefined);
   const [hoveredNode, setHoveredNode] = useState<TagNetworkNode | null>(null);
   const { width, height } = useContainerSize(containerRef);
+  const supportsHover = useSupportsHover();
   const { resolvedTheme } = useTheme();
   // The canvas background follows the page theme, so link lines need to flip too — white lines
   // are invisible against the light-mode background.
@@ -184,6 +186,21 @@ export function Graph({
     };
   }, [network]);
 
+  // Favicons are fetched lazily and cached by domain — the sim keeps ticking during warmup/
+  // cooldown, so once an <img> finishes loading it just gets picked up on the next draw without
+  // any extra invalidation plumbing.
+  const iconCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const getFaviconImage = useCallback((domain: string | null): HTMLImageElement | null => {
+    if (!domain) return null;
+    const cache = iconCacheRef.current;
+    const cached = cache.get(domain);
+    if (cached) return cached.complete && cached.naturalWidth > 0 ? cached : null;
+    const img = new Image();
+    img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    cache.set(domain, img);
+    return null;
+  }, []);
+
   const isNodeRelated = useCallback(
     (node: TagNetworkNode): boolean => {
       return node.kind === "tag" && (selectionRelatedTagIds?.has(node.id) ?? false);
@@ -276,10 +293,47 @@ export function Graph({
         ctx.beginPath();
         ctx.arc(x, y, isHovered ? RAINDROP_DOT_RADIUS + 1.5 : RAINDROP_DOT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
+
+        // Title + favicon label: only for raindrops in focus (i.e. belonging to a selected tag) —
+        // showing this for every raindrop at once would bury the graph in overlapping text.
+        if (!dimmed && selectionRelevantNodeIds?.has(n.id)) {
+          const iconSize = 5;
+          const gap = 2;
+          let textX = x + RAINDROP_DOT_RADIUS + gap;
+
+          const icon = getFaviconImage(n.domain);
+          if (icon) {
+            ctx.globalAlpha = 0.95;
+            ctx.drawImage(icon, textX, y - iconSize / 2, iconSize, iconSize);
+            textX += iconSize + gap;
+          }
+
+          ctx.font = "500 4px sans-serif";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          let title = n.title;
+          const maxWidth = 60;
+          while (title.length > 1 && ctx.measureText(title).width > maxWidth) {
+            title = title.slice(0, -1);
+          }
+          if (title !== n.title) title = `${title.trimEnd()}…`;
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = `rgba(${lineRgb},0.9)`;
+          ctx.fillText(title, textX, y);
+        }
       }
       ctx.globalAlpha = 1;
     },
-    [hoveredNode, isNodeDimmed, isNodeRelated, hoverFillColor, hoverLabelColor]
+    [
+      hoveredNode,
+      isNodeDimmed,
+      isNodeRelated,
+      hoverFillColor,
+      hoverLabelColor,
+      lineRgb,
+      selectionRelevantNodeIds,
+      getFaviconImage,
+    ]
   );
 
   const linkWidth = useCallback(
@@ -312,6 +366,10 @@ export function Graph({
 
   const handleNodeHover = useCallback(
     (node: FGNode | null) => {
+      // On touch devices, a tap fires this hover callback before the click callback — without
+      // this guard, the tapped node would get stuck showing the desktop "hovered" dim/highlight
+      // treatment instead of just performing the tap's click action (see useSupportsHover).
+      if (!supportsHover) return;
       const n = node as unknown as (TagNetworkNode & { x?: number; y?: number }) | null;
       setHoveredNode(n);
 
@@ -335,7 +393,7 @@ export function Graph({
         onHoverTag(n.tagId);
       }
     },
-    [onHoverRaindrop, onHoverTag]
+    [onHoverRaindrop, onHoverTag, supportsHover]
   );
 
   const handleNodeClick = useCallback(
@@ -368,7 +426,7 @@ export function Graph({
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
         warmupTicks={100}
-        enableNodeDrag={true}
+        enableNodeDrag={supportsHover}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
       />

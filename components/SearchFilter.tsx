@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ type SearchFilterProps = {
   onToggleTagFilter: (tagId: number) => void;
   onClearTagFilters: () => void;
   onClose?: () => void;
+  onCollapse?: () => void;
 };
 
 export function SearchFilter({
@@ -24,13 +25,14 @@ export function SearchFilter({
   onToggleTagFilter,
   onClearTagFilters,
   onClose,
+  onCollapse,
 }: SearchFilterProps) {
   const sortedTags = tags
     .filter((tag) => matchingTagIds === null || matchingTagIds.has(tag.id))
     .sort((a, b) => b.count - a.count);
 
   return (
-    <div className="flex h-full w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r bg-background p-4">
+    <div className="scrollbar-thin flex h-full w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r bg-background p-4">
       <div className="flex items-center gap-2 md:hidden">
         <span className="text-sm font-medium">Filters</span>
         <Button
@@ -44,11 +46,22 @@ export function SearchFilter({
         </Button>
       </div>
 
-      <Input
-        placeholder="Search titles, excerpts..."
-        value={searchQuery}
-        onChange={(e) => onSearchQueryChange(e.target.value)}
-      />
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="Search titles, excerpts..."
+          value={searchQuery}
+          onChange={(e) => onSearchQueryChange(e.target.value)}
+        />
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="hidden shrink-0 md:inline-flex"
+          onClick={onCollapse}
+          aria-label="Collapse tags panel"
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
+      </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
