@@ -174,21 +174,35 @@ export function SolarSystemGraph({
       }
       if (cancelled) return;
 
+      // Each sun's planets orbit out to `orbitRadius`, so the sun's own core radius understates
+      // how much space it actually occupies on screen — colliding on core radius alone let
+      // neighboring suns settle close enough that their orbit rings (and the halo glow drawn
+      // around each sun) visually overlapped into a cluttered mess. Collide on the *orbital
+      // extent* instead so suns keep clear space between their rings.
+      const maxOrbitRadiusBySunId = new Map<string, number>();
+      for (const node of solar.nodes) {
+        if (node.kind !== "planet") continue;
+        const current = maxOrbitRadiusBySunId.get(node.homeSunId) ?? 0;
+        if (node.orbitRadius > current) maxOrbitRadiusBySunId.set(node.homeSunId, node.orbitRadius);
+      }
+
       fg.d3Force(
         "charge",
-        forceManyBody<FGNode>().strength((n) => (isSun(n as unknown as SolarSystemNode) ? -450 : 0))
+        forceManyBody<FGNode>().strength((n) => (isSun(n as unknown as SolarSystemNode) ? -600 : 0))
       );
       fg.d3Force(
         "collide",
         forceCollide<FGNode>((n) => {
           const node = n as unknown as SolarSystemNode;
-          return isSun(node) ? node.radius + 30 : 0;
+          if (!isSun(node)) return 0;
+          const orbitExtent = maxOrbitRadiusBySunId.get(node.id) ?? 0;
+          return Math.max(node.radius + 30, orbitExtent + 40);
         })
       );
       const linkForce = fg.d3Force("link");
       if (linkForce) {
         linkForce
-          .distance((l: unknown) => ((l as SolarLink).kind === "cross-tag" ? 40 : 150))
+          .distance((l: unknown) => ((l as SolarLink).kind === "cross-tag" ? 55 : 220))
           .strength((l: unknown) => {
             const link = l as SolarLink;
             return link.kind === "cooccurrence" ? Math.min(0.6, link.weight / 15) : 0;
@@ -288,7 +302,17 @@ export function SolarSystemGraph({
       }
       if (hoveredNode && node.id !== hoveredNode.id) {
         const neighbors = neighborsByNodeId.get(hoveredNode.id);
-        if (!neighbors?.has(node.id)) return true;
+        const isNeighbor = neighbors?.has(node.id) ?? false;
+        // A planet only ever links to *other* tags it carries (cross-tag), never to its own
+        // home sun — there's no edge in the data for "this planet orbits this sun". Without this
+        // check, hovering a sun would dim away every one of its own orbiting planets (and hovering
+        // a planet would dim its own home sun), since the link-based neighbor index has no idea
+        // they're related.
+        const isHomeSunFamily =
+          (hoveredNode.kind === "sun" && node.kind === "planet" && node.homeSunId === hoveredNode.id) ||
+          (hoveredNode.kind === "planet" && node.kind === "sun" && node.id === hoveredNode.homeSunId) ||
+          (hoveredNode.kind === "planet" && node.kind === "planet" && node.homeSunId === hoveredNode.homeSunId);
+        if (!isNeighbor && !isHomeSunFamily) return true;
       }
       return false;
     },

@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { Menu } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight, Maximize2, Menu, Minimize2 } from "lucide-react";
 import { Graph } from "@/components/Graph";
 import { SolarSystemGraph } from "@/components/SolarSystemGraph";
 import { PreviewCard } from "@/components/PreviewCard";
@@ -11,7 +10,6 @@ import { SyncButton } from "@/components/SyncButton";
 import { ViewSwitcher, type ViewMode } from "@/components/ViewSwitcher";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { ROUTES } from "@/app/lib/constants";
 import { cn } from "@/lib/utils";
 import type { GraphData, GraphRaindrop, PositionedRaindrop } from "@/lib/types";
 
@@ -21,16 +19,41 @@ function raindropMatchesQuery(r: GraphRaindrop, query: string): boolean {
   return r.title.toLowerCase().includes(query) || (r.excerpt?.toLowerCase().includes(query) ?? false);
 }
 
-export function DashboardClient({ initialView }: { initialView: ViewMode }) {
+export function DashboardClient({
+  initialView,
+  isRaindropConnected,
+}: {
+  initialView: ViewMode;
+  isRaindropConnected: boolean;
+}) {
   const [data, setData] = useState<GraphData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTagIds, setActiveTagIds] = useState<Set<number>>(new Set());
   const [activeView, setActiveView] = useState<ViewMode>(initialView);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [hovered, setHovered] = useState<{ raindrop: PositionedRaindrop; x: number; y: number } | null>(
     null
   );
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(document.fullscreenElement === graphContainerRef.current);
+    }
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      graphContainerRef.current?.requestFullscreen();
+    }
+  }
 
   const fetchGraph = useCallback(async () => {
     setIsLoading(true);
@@ -99,16 +122,25 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
   if (!isLoading && graphData.raindrops.length === 0) {
     return (
       <main className="mx-auto flex min-h-[calc(100vh-73px)] w-full max-w-xl flex-col items-center justify-center gap-4 p-6 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">No raindrops yet</h1>
-        <p className="text-muted-foreground">
-          Connect your Raindrop.io account and run a sync to see your graph.
-        </p>
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href={ROUTES.SETTINGS}>Go to Settings</Link>
-          </Button>
-          <SyncButton onSynced={fetchGraph} />
-        </div>
+        {isRaindropConnected ? (
+          <>
+            <h1 className="text-2xl font-semibold tracking-tight">No raindrops yet</h1>
+            <p className="text-muted-foreground">
+              Your Raindrop.io account is connected — run a sync to see your graph.
+            </p>
+            <SyncButton onSynced={fetchGraph} />
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-semibold tracking-tight">Connect your Raindrop.io account</h1>
+            <p className="text-muted-foreground">
+              Connect your account to sync and visualize your bookmarks.
+            </p>
+            <Button asChild>
+              <a href="/api/raindrop/connect">Connect Raindrop account</a>
+            </Button>
+          </>
+        )}
       </main>
     );
   }
@@ -135,8 +167,9 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 top-[73px] z-30 h-[calc(100vh-73px)] transition-transform duration-200 ease-in-out md:static md:z-auto md:h-full md:translate-x-0",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 top-[73px] z-30 h-[calc(100vh-73px)] overflow-x-hidden transition-transform duration-200 ease-in-out md:static md:z-auto md:h-full md:transition-[width] md:duration-200 md:translate-x-0",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full",
+          isSidebarCollapsed ? "md:w-0" : "md:w-72"
         )}
       >
         <SearchFilter
@@ -148,10 +181,22 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
           onToggleTagFilter={toggleTagFilter}
           onClearTagFilters={() => setActiveTagIds(new Set())}
           onClose={() => setIsSidebarOpen(false)}
+          onCollapse={() => setIsSidebarCollapsed(true)}
         />
       </div>
 
-      <div className="relative min-w-0 flex-1 overflow-hidden">
+      {isSidebarCollapsed ? (
+        <button
+          type="button"
+          onClick={() => setIsSidebarCollapsed(false)}
+          aria-label="Expand tags panel"
+          className="absolute left-0 top-8.5 z-40 hidden size-6 -translate-y-1/2 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-accent md:flex"
+        >
+          <ChevronRight className="size-3.5" />
+        </button>
+      ) : null}
+
+      <div ref={graphContainerRef} className="relative min-w-0 flex-1 overflow-hidden bg-background">
         <div className="absolute left-4 top-4 z-10 md:hidden">
           <Button
             variant="outline"
@@ -185,6 +230,17 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
         {hovered ? (
           <PreviewCard raindrop={hovered.raindrop} x={hovered.x} y={hovered.y} />
         ) : null}
+
+        <div className="absolute bottom-4 right-4 z-10">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </Button>
+        </div>
       </div>
     </div>
   );
