@@ -34,6 +34,7 @@ export type GraphProps = {
   data: GraphData;
   activeTagIds: Set<number> | null;
   matchingRaindropIds: Set<number> | null;
+  matchingTagIds: Set<number> | null;
   onHoverRaindrop: (raindrop: PositionedRaindrop | null, screenX: number, screenY: number) => void;
   onHoverTag: (tagId: number | null) => void;
   onToggleTagFilter: (tagId: number) => void;
@@ -59,6 +60,7 @@ export function Graph({
   data,
   activeTagIds,
   matchingRaindropIds,
+  matchingTagIds,
   onHoverRaindrop,
   onHoverTag,
   onToggleTagFilter,
@@ -194,6 +196,9 @@ export function Graph({
       if (node.kind === "raindrop" && matchingRaindropIds !== null && !matchingRaindropIds.has(node.raindropId)) {
         return true;
       }
+      if (node.kind === "tag" && matchingTagIds !== null && !matchingTagIds.has(node.tagId)) {
+        return true;
+      }
       if (selectionRelevantNodeIds && !selectionRelevantNodeIds.has(node.id) && !isNodeRelated(node)) {
         return true;
       }
@@ -203,7 +208,33 @@ export function Graph({
       }
       return false;
     },
-    [selectionRelevantNodeIds, isNodeRelated, matchingRaindropIds, hoveredNode, neighborsByNodeId]
+    [selectionRelevantNodeIds, isNodeRelated, matchingRaindropIds, matchingTagIds, hoveredNode, neighborsByNodeId]
+  );
+
+  // A search (title/excerpt or tag-name query) fades any link that doesn't have both endpoints
+  // matching — a membership link needs its raindrop in matchingRaindropIds AND its tag in
+  // matchingTagIds; a cooccurrence link needs both tags in matchingTagIds. Independent of, and
+  // takes priority over, the tag-selection focus tiering below.
+  const isLinkMatchingSearch = useCallback(
+    (link: TagNetworkLink): boolean => {
+      if (matchingRaindropIds === null && matchingTagIds === null) return true;
+      const [sourceId, targetId] = linkEndpointIds(link);
+      if (link.kind === "membership") {
+        const raindropId = Number(sourceId.split(":")[1]);
+        const tagId = Number(targetId.split(":")[1]);
+        return (
+          (matchingRaindropIds === null || matchingRaindropIds.has(raindropId)) &&
+          (matchingTagIds === null || matchingTagIds.has(tagId))
+        );
+      }
+      const tagIdA = Number(sourceId.split(":")[1]);
+      const tagIdB = Number(targetId.split(":")[1]);
+      return (
+        (matchingTagIds === null || matchingTagIds.has(tagIdA)) &&
+        (matchingTagIds === null || matchingTagIds.has(tagIdB))
+      );
+    },
+    [matchingRaindropIds, matchingTagIds]
   );
 
   const isLinkHighlighted = useCallback(
@@ -255,17 +286,19 @@ export function Graph({
     (link: FGLink) => {
       const l = link as unknown as TagNetworkLink;
       const base = l.kind === "membership" ? MEMBERSHIP_LINK_WIDTH : linkWidthScale(l.weight);
+      if (!isLinkMatchingSearch(l)) return base * 0.4;
       if (selectedTagIds) {
         return linkFocusTier(l) === "primary" ? 1.2 : base * 0.4;
       }
       return isLinkHighlighted(l) ? base + 2 : base;
     },
-    [linkWidthScale, selectedTagIds, linkFocusTier, isLinkHighlighted]
+    [linkWidthScale, selectedTagIds, linkFocusTier, isLinkHighlighted, isLinkMatchingSearch]
   );
 
   const linkColor = useCallback(
     (link: FGLink) => {
       const l = link as unknown as TagNetworkLink;
+      if (!isLinkMatchingSearch(l)) return `rgba(${lineRgb},0.02)`;
       if (selectedTagIds) {
         return linkFocusTier(l) === "primary" ? `rgba(${lineRgb},0.5)` : `rgba(${lineRgb},0.02)`;
       }
@@ -274,7 +307,7 @@ export function Graph({
       }
       return isLinkHighlighted(l) ? `rgba(${lineRgb},0.9)` : `rgba(${lineRgb},0.35)`;
     },
-    [selectedTagIds, linkFocusTier, isLinkHighlighted, lineRgb]
+    [selectedTagIds, linkFocusTier, isLinkHighlighted, lineRgb, isLinkMatchingSearch]
   );
 
   const handleNodeHover = useCallback(

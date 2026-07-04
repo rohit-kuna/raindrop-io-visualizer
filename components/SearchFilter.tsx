@@ -5,6 +5,7 @@ import type { GraphTag } from "@/lib/types";
 
 type SearchFilterProps = {
   tags: GraphTag[];
+  matchingTagIds: Set<number> | null;
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   activeTagIds: Set<number>;
@@ -14,13 +15,16 @@ type SearchFilterProps = {
 
 export function SearchFilter({
   tags,
+  matchingTagIds,
   searchQuery,
   onSearchQueryChange,
   activeTagIds,
   onToggleTagFilter,
   onClearTagFilters,
 }: SearchFilterProps) {
-  const sortedTags = [...tags].sort((a, b) => b.count - a.count);
+  const sortedTags = tags
+    .filter((tag) => matchingTagIds === null || matchingTagIds.has(tag.id))
+    .sort((a, b) => b.count - a.count);
 
   return (
     <div className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r p-4">

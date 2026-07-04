@@ -41,6 +41,7 @@ export type SolarSystemGraphProps = {
   data: GraphData;
   activeTagIds: Set<number> | null;
   matchingRaindropIds: Set<number> | null;
+  matchingTagIds: Set<number> | null;
   onHoverRaindrop: (raindrop: PositionedRaindrop | null, screenX: number, screenY: number) => void;
   onHoverTag: (tagId: number | null) => void;
   onToggleTagFilter: (tagId: number) => void;
@@ -78,6 +79,7 @@ export function SolarSystemGraph({
   data,
   activeTagIds,
   matchingRaindropIds,
+  matchingTagIds,
   onHoverRaindrop,
   onHoverTag,
   onToggleTagFilter,
@@ -276,6 +278,9 @@ export function SolarSystemGraph({
       if (node.kind === "planet" && matchingRaindropIds !== null && !matchingRaindropIds.has(node.raindropId)) {
         return true;
       }
+      if (node.kind === "sun" && matchingTagIds !== null && !matchingTagIds.has(node.tagId)) {
+        return true;
+      }
       if (selectionRelevantNodeIds && !selectionRelevantNodeIds.has(node.id) && !isNodeRelated(node)) {
         return true;
       }
@@ -285,7 +290,33 @@ export function SolarSystemGraph({
       }
       return false;
     },
-    [selectionRelevantNodeIds, isNodeRelated, matchingRaindropIds, hoveredNode, neighborsByNodeId]
+    [selectionRelevantNodeIds, isNodeRelated, matchingRaindropIds, matchingTagIds, hoveredNode, neighborsByNodeId]
+  );
+
+  // A search (title/excerpt or tag-name query) fades any link that doesn't have both endpoints
+  // matching — a cross-tag link needs its planet's raindrop in matchingRaindropIds AND the other
+  // sun's tag in matchingTagIds; a cooccurrence link needs both suns' tags in matchingTagIds.
+  const isLinkMatchingSearch = useCallback(
+    (link: SolarLink): boolean => {
+      if (matchingRaindropIds === null && matchingTagIds === null) return true;
+      const sourceId = typeof link.source === "string" ? link.source : (link.source as { id: string }).id;
+      const targetId = typeof link.target === "string" ? link.target : (link.target as { id: string }).id;
+      if (link.kind === "cross-tag") {
+        const raindropId = Number(sourceId.split(":")[1]);
+        const tagId = Number(targetId.split(":")[1]);
+        return (
+          (matchingRaindropIds === null || matchingRaindropIds.has(raindropId)) &&
+          (matchingTagIds === null || matchingTagIds.has(tagId))
+        );
+      }
+      const tagIdA = Number(sourceId.split(":")[1]);
+      const tagIdB = Number(targetId.split(":")[1]);
+      return (
+        (matchingTagIds === null || matchingTagIds.has(tagIdA)) &&
+        (matchingTagIds === null || matchingTagIds.has(tagIdB))
+      );
+    },
+    [matchingRaindropIds, matchingTagIds]
   );
 
   // Any tag selection fully fades every link — related tags are shown as subtly-highlighted suns
@@ -360,22 +391,24 @@ export function SolarSystemGraph({
     (link: FGLink) => {
       const l = link as unknown as SolarLink;
       const base = l.kind === "cross-tag" ? CROSS_LINK_WIDTH : sunLinkWidthScale(l.weight);
+      if (!isLinkMatchingSearch(l)) return base * 0.4;
       if (isLinkDimmed()) return base * 0.4;
       return isLinkHighlighted(l) ? base + 2 : base;
     },
-    [sunLinkWidthScale, isLinkDimmed, isLinkHighlighted]
+    [sunLinkWidthScale, isLinkDimmed, isLinkHighlighted, isLinkMatchingSearch]
   );
 
   const linkColor = useCallback(
     (link: FGLink) => {
       const l = link as unknown as SolarLink;
+      if (!isLinkMatchingSearch(l)) return `rgba(${lineRgb},0.02)`;
       if (isLinkDimmed()) return `rgba(${lineRgb},0.02)`;
       if (l.kind === "cross-tag") {
         return isLinkHighlighted(l) ? `rgba(${lineRgb},0.6)` : `rgba(${lineRgb},${CROSS_LINK_OPACITY})`;
       }
       return isLinkHighlighted(l) ? `rgba(${lineRgb},0.9)` : `rgba(${lineRgb},0.35)`;
     },
-    [isLinkDimmed, isLinkHighlighted, lineRgb]
+    [isLinkDimmed, isLinkHighlighted, lineRgb, isLinkMatchingSearch]
   );
 
   const handleNodeHover = useCallback(

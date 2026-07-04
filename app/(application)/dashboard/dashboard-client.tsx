@@ -11,9 +11,13 @@ import { ViewSwitcher, type ViewMode } from "@/components/ViewSwitcher";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ROUTES } from "@/app/lib/constants";
-import type { GraphData, PositionedRaindrop } from "@/lib/types";
+import type { GraphData, GraphRaindrop, PositionedRaindrop } from "@/lib/types";
 
 const EMPTY_DATA: GraphData = { tags: [], collections: [], raindrops: [] };
+
+function raindropMatchesQuery(r: GraphRaindrop, query: string): boolean {
+  return r.title.toLowerCase().includes(query) || (r.excerpt?.toLowerCase().includes(query) ?? false);
+}
 
 export function DashboardClient({ initialView }: { initialView: ViewMode }) {
   const [data, setData] = useState<GraphData | null>(null);
@@ -50,12 +54,35 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
     const matches = new Set<number>();
     for (const r of graphData.raindrops) {
       if (activeTagIds.size > 0 && !r.tagIds.some((id) => activeTagIds.has(id))) continue;
-      if (query && !r.title.toLowerCase().includes(query) && !r.excerpt?.toLowerCase().includes(query))
-        continue;
+      if (query && !raindropMatchesQuery(r, query)) continue;
       matches.add(r.id);
     }
     return matches;
   }, [graphData.raindrops, searchQuery, activeTagIds]);
+
+  // Search-driven tag matching is independent of tag-click selection (which has its own
+  // primary/related/faded focus system in the graph views) — a tag matches if its own name
+  // matches, or it's attached to a raindrop whose title/excerpt matches. Only active when
+  // there's actual query text, so it doesn't interact with tag-selection-only filtering.
+  const matchingTagIds = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return null;
+
+    const matchingRaindropTagIds = new Set<number>();
+    for (const r of graphData.raindrops) {
+      if (raindropMatchesQuery(r, query)) {
+        for (const tagId of r.tagIds) matchingRaindropTagIds.add(tagId);
+      }
+    }
+
+    const matches = new Set<number>();
+    for (const tag of graphData.tags) {
+      if (tag.name.toLowerCase().includes(query) || matchingRaindropTagIds.has(tag.id)) {
+        matches.add(tag.id);
+      }
+    }
+    return matches;
+  }, [graphData.raindrops, graphData.tags, searchQuery]);
 
   function toggleTagFilter(tagId: number) {
     setActiveTagIds((prev) => {
@@ -87,6 +114,7 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
     data: graphData,
     activeTagIds: activeTagIds.size > 0 ? activeTagIds : null,
     matchingRaindropIds,
+    matchingTagIds,
     onHoverRaindrop: (raindrop: PositionedRaindrop | null, x: number, y: number) =>
       setHovered(raindrop ? { raindrop, x, y } : null),
     onHoverTag: () => {},
@@ -97,6 +125,7 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
     <div className="flex h-[calc(100vh-73px)] w-full">
       <SearchFilter
         tags={graphData.tags}
+        matchingTagIds={matchingTagIds}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         activeTagIds={activeTagIds}
