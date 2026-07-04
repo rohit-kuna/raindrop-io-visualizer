@@ -186,6 +186,21 @@ export function Graph({
     };
   }, [network]);
 
+  // Favicons are fetched lazily and cached by domain — the sim keeps ticking during warmup/
+  // cooldown, so once an <img> finishes loading it just gets picked up on the next draw without
+  // any extra invalidation plumbing.
+  const iconCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const getFaviconImage = useCallback((domain: string | null): HTMLImageElement | null => {
+    if (!domain) return null;
+    const cache = iconCacheRef.current;
+    const cached = cache.get(domain);
+    if (cached) return cached.complete && cached.naturalWidth > 0 ? cached : null;
+    const img = new Image();
+    img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    cache.set(domain, img);
+    return null;
+  }, []);
+
   const isNodeRelated = useCallback(
     (node: TagNetworkNode): boolean => {
       return node.kind === "tag" && (selectionRelatedTagIds?.has(node.id) ?? false);
@@ -278,10 +293,47 @@ export function Graph({
         ctx.beginPath();
         ctx.arc(x, y, isHovered ? RAINDROP_DOT_RADIUS + 1.5 : RAINDROP_DOT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
+
+        // Title + favicon label: only for raindrops in focus (i.e. belonging to a selected tag) —
+        // showing this for every raindrop at once would bury the graph in overlapping text.
+        if (!dimmed && selectionRelevantNodeIds?.has(n.id)) {
+          const iconSize = 5;
+          const gap = 2;
+          let textX = x + RAINDROP_DOT_RADIUS + gap;
+
+          const icon = getFaviconImage(n.domain);
+          if (icon) {
+            ctx.globalAlpha = 0.95;
+            ctx.drawImage(icon, textX, y - iconSize / 2, iconSize, iconSize);
+            textX += iconSize + gap;
+          }
+
+          ctx.font = "500 4px sans-serif";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          let title = n.title;
+          const maxWidth = 60;
+          while (title.length > 1 && ctx.measureText(title).width > maxWidth) {
+            title = title.slice(0, -1);
+          }
+          if (title !== n.title) title = `${title.trimEnd()}…`;
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = `rgba(${lineRgb},0.9)`;
+          ctx.fillText(title, textX, y);
+        }
       }
       ctx.globalAlpha = 1;
     },
-    [hoveredNode, isNodeDimmed, isNodeRelated, hoverFillColor, hoverLabelColor]
+    [
+      hoveredNode,
+      isNodeDimmed,
+      isNodeRelated,
+      hoverFillColor,
+      hoverLabelColor,
+      lineRgb,
+      selectionRelevantNodeIds,
+      getFaviconImage,
+    ]
   );
 
   const linkWidth = useCallback(
