@@ -1,13 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Maximize2, Menu, Minimize2 } from "lucide-react";
+import { ChevronRight, Maximize, Minimize } from "lucide-react";
 import { Graph } from "@/components/Graph";
-import { SolarSystemGraph } from "@/components/SolarSystemGraph";
 import { PreviewCard } from "@/components/PreviewCard";
 import { SearchFilter } from "@/components/SearchFilter";
 import { SyncButton } from "@/components/SyncButton";
-import { ViewSwitcher, type ViewMode } from "@/components/ViewSwitcher";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -20,17 +18,14 @@ function raindropMatchesQuery(r: GraphRaindrop, query: string): boolean {
 }
 
 export function DashboardClient({
-  initialView,
   isRaindropConnected,
 }: {
-  initialView: ViewMode;
   isRaindropConnected: boolean;
 }) {
   const [data, setData] = useState<GraphData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTagIds, setActiveTagIds] = useState<Set<number>>(new Set());
-  const [activeView, setActiveView] = useState<ViewMode>(initialView);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [hovered, setHovered] = useState<{ raindrop: PositionedRaindrop; x: number; y: number } | null>(
@@ -121,7 +116,7 @@ export function DashboardClient({
 
   if (!isLoading && graphData.raindrops.length === 0) {
     return (
-      <main className="mx-auto flex min-h-[calc(100vh-73px)] w-full max-w-xl flex-col items-center justify-center gap-4 p-6 text-center">
+      <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center gap-4 p-6 pt-18.25 text-center">
         {isRaindropConnected ? (
           <>
             <h1 className="text-2xl font-semibold tracking-tight">No raindrops yet</h1>
@@ -157,7 +152,7 @@ export function DashboardClient({
   };
 
   return (
-    <div className="relative flex h-[calc(100vh-73px)] w-full overflow-hidden">
+    <div className="relative flex h-screen w-full overflow-hidden">
       {isSidebarOpen ? (
         <div
           className="fixed inset-0 top-[73px] z-20 bg-black/50 md:hidden"
@@ -167,7 +162,7 @@ export function DashboardClient({
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 top-[73px] z-30 h-[calc(100vh-73px)] overflow-x-hidden transition-transform duration-200 ease-in-out md:static md:z-auto md:h-full md:transition-[width] md:duration-200 md:translate-x-0",
+          "fixed inset-y-0 left-0 top-[73px] z-30 h-[calc(100vh-73px)] overflow-x-hidden transition-transform duration-200 ease-in-out md:static md:z-auto md:h-full md:pt-18.25 md:transition-[width] md:duration-200 md:translate-x-0",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full",
           isSidebarCollapsed ? "md:w-0" : "md:w-72"
         )}
@@ -190,26 +185,25 @@ export function DashboardClient({
           type="button"
           onClick={() => setIsSidebarCollapsed(false)}
           aria-label="Expand tags panel"
-          className="absolute left-0 top-8.5 z-40 hidden size-6 -translate-y-1/2 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-accent md:flex"
+          className="absolute left-2 top-26.75 z-40 hidden size-9 -translate-y-1/2 items-center justify-center rounded-md border bg-background/80 shadow-sm backdrop-blur hover:bg-accent sm:left-4 md:flex"
         >
-          <ChevronRight className="size-3.5" />
+          <ChevronRight className="size-4" />
         </button>
       ) : null}
 
       <div ref={graphContainerRef} className="relative min-w-0 flex-1 overflow-hidden bg-background">
-        <div className="absolute left-4 top-4 z-10 md:hidden">
-          <Button
-            variant="outline"
-            size="icon"
+        <div className="absolute left-4 top-22.25 z-10 md:hidden">
+          <button
+            type="button"
             onClick={() => setIsSidebarOpen(true)}
             aria-label="Open tags panel"
+            className="flex size-9 items-center justify-center rounded-md border bg-background/80 shadow-sm backdrop-blur hover:bg-accent"
           >
-            <Menu className="size-4" />
-          </Button>
+            <ChevronRight className="size-4" />
+          </button>
         </div>
 
-        <div className="absolute right-2 top-4 z-10 flex gap-1 sm:right-4 sm:gap-2">
-          <ViewSwitcher view={activeView} onChange={setActiveView} />
+        <div className="absolute right-2 top-22.25 z-10 flex gap-1 sm:right-4 sm:gap-2">
           <SyncButton onSynced={fetchGraph} />
         </div>
 
@@ -218,12 +212,8 @@ export function DashboardClient({
             <Spinner className="size-6" />
           </div>
         ) : (
-          <div key={activeView} className="h-full w-full animate-in fade-in duration-300 ease-out">
-            {activeView === "network" ? (
-              <Graph {...sharedGraphProps} />
-            ) : (
-              <SolarSystemGraph {...sharedGraphProps} />
-            )}
+          <div className="h-full w-full animate-in fade-in duration-300 ease-out">
+            <Graph {...sharedGraphProps} />
           </div>
         )}
 
@@ -238,7 +228,7 @@ export function DashboardClient({
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
-            {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            {isFullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
           </Button>
         </div>
       </div>

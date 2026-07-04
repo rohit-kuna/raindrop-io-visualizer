@@ -41,9 +41,15 @@ export function SyncButton({ onSynced }: SyncButtonProps) {
           Synced {lastSyncedAt.toLocaleTimeString()}
         </span>
       ) : null}
-      <Button size="sm" variant="outline" onClick={handleSync} disabled={isSyncing}>
+      <Button
+        size="icon"
+        variant="outline"
+        onClick={handleSync}
+        disabled={isSyncing}
+        aria-label={isSyncing ? "Syncing..." : "Sync"}
+        className="rounded-full bg-background/80 backdrop-blur"
+      >
         <RefreshCw className={isSyncing ? "animate-spin" : ""} />
-        {isSyncing ? "Syncing..." : "Sync"}
       </Button>
     </div>
   );

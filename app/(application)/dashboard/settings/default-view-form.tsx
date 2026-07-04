@@ -33,7 +33,8 @@ export function DefaultViewForm({ initialView }: { initialView: ViewMode }) {
       </Button>
       <Button
         variant={view === "solar" ? "default" : "outline"}
-        disabled={isPending}
+        disabled
+        title="Solar System view is temporarily disabled"
         onClick={() => handleSelect("solar")}
       >
         Solar System

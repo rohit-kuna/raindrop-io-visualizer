@@ -1,4 +1,4 @@
-# Raindrop Graph
+# Mindverse
 
 Explore your [Raindrop.io](https://raindrop.io) bookmarks as an interactive radial graph:
 tags are colored cluster nodes arranged in a circle, raindrops are dots pulled toward the

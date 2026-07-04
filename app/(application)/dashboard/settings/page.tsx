@@ -1,14 +1,12 @@
 import { requireUser } from "@/app/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TokenForm } from "./token-form";
-import { DefaultViewForm } from "./default-view-form";
-import type { ViewMode } from "@/app/actions/settings/view.actions";
 
 export default async function SettingsPage() {
   const user = await requireUser();
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-73px)] w-full max-w-2xl flex-col gap-6 p-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6 pt-18.25">
       <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
 
       <Card>
@@ -21,18 +19,6 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <TokenForm initiallyConnected={Boolean(user.raindropAccessToken)} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Default view</CardTitle>
-          <CardDescription>
-            Choose which visualization opens by default on the dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DefaultViewForm initialView={(user.defaultView === "solar" ? "solar" : "network") as ViewMode} />
         </CardContent>
       </Card>
     </main>
