@@ -1,13 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Maximize2, Menu, Minimize2 } from "lucide-react";
+import { ChevronRight, Maximize, Menu, Minimize } from "lucide-react";
 import { Graph } from "@/components/Graph";
-import { SolarSystemGraph } from "@/components/SolarSystemGraph";
 import { PreviewCard } from "@/components/PreviewCard";
 import { SearchFilter } from "@/components/SearchFilter";
 import { SyncButton } from "@/components/SyncButton";
-import { ViewSwitcher, type ViewMode } from "@/components/ViewSwitcher";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -20,17 +18,14 @@ function raindropMatchesQuery(r: GraphRaindrop, query: string): boolean {
 }
 
 export function DashboardClient({
-  initialView,
   isRaindropConnected,
 }: {
-  initialView: ViewMode;
   isRaindropConnected: boolean;
 }) {
   const [data, setData] = useState<GraphData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTagIds, setActiveTagIds] = useState<Set<number>>(new Set());
-  const [activeView, setActiveView] = useState<ViewMode>(initialView);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [hovered, setHovered] = useState<{ raindrop: PositionedRaindrop; x: number; y: number } | null>(
@@ -190,9 +185,9 @@ export function DashboardClient({
           type="button"
           onClick={() => setIsSidebarCollapsed(false)}
           aria-label="Expand tags panel"
-          className="absolute left-0 top-8.5 z-40 hidden size-6 -translate-y-1/2 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-accent md:flex"
+          className="absolute left-2 top-8.5 z-40 hidden size-9 -translate-y-1/2 items-center justify-center rounded-md border bg-background/80 shadow-sm backdrop-blur hover:bg-accent sm:left-4 md:flex"
         >
-          <ChevronRight className="size-3.5" />
+          <ChevronRight className="size-4" />
         </button>
       ) : null}
 
@@ -209,7 +204,6 @@ export function DashboardClient({
         </div>
 
         <div className="absolute right-2 top-4 z-10 flex gap-1 sm:right-4 sm:gap-2">
-          <ViewSwitcher view={activeView} onChange={setActiveView} />
           <SyncButton onSynced={fetchGraph} />
         </div>
 
@@ -218,12 +212,8 @@ export function DashboardClient({
             <Spinner className="size-6" />
           </div>
         ) : (
-          <div key={activeView} className="h-full w-full animate-in fade-in duration-300 ease-out">
-            {activeView === "network" ? (
-              <Graph {...sharedGraphProps} />
-            ) : (
-              <SolarSystemGraph {...sharedGraphProps} />
-            )}
+          <div className="h-full w-full animate-in fade-in duration-300 ease-out">
+            <Graph {...sharedGraphProps} />
           </div>
         )}
 
@@ -238,7 +228,7 @@ export function DashboardClient({
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
-            {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            {isFullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
           </Button>
         </div>
       </div>

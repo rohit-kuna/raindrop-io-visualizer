@@ -33,7 +33,7 @@ export function SearchFilter({
 
   return (
     <div className="scrollbar-thin flex h-full w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r bg-background p-4">
-      <div className="flex items-center gap-2 md:hidden">
+      <div className="-mr-2 flex items-center gap-2 md:hidden">
         <span className="text-sm font-medium">Filters</span>
         <Button
           variant="ghost"
@@ -46,21 +46,20 @@ export function SearchFilter({
         </Button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="-mr-2 flex items-center gap-2">
         <Input
           placeholder="Search titles, excerpts..."
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
         />
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="hidden shrink-0 md:inline-flex"
+        <button
+          type="button"
           onClick={onCollapse}
           aria-label="Collapse tags panel"
+          className="hidden size-9 shrink-0 items-center justify-center rounded-md border bg-background/80 shadow-sm backdrop-blur hover:bg-accent md:flex"
         >
           <ChevronLeft className="size-4" />
-        </Button>
+        </button>
       </div>
 
       <div className="flex flex-col gap-2">

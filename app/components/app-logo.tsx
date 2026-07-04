@@ -14,7 +14,7 @@ export function AppLogo({ href = "/" }: AppLogoProps) {
       <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
         <Waypoints className="h-4 w-4" />
       </div>
-      <span className="hidden text-lg tracking-tight sm:inline">Raindrop Graph</span>
+      <span className="hidden text-lg tracking-tight sm:inline">Mindverse</span>
     </Link>
   );
 }

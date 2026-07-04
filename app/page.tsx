@@ -42,12 +42,11 @@ export default async function HomePage() {
         <Card className="w-full max-w-xl py-8">
           <CardHeader className="px-8">
             <CardTitle className="text-4xl font-bold tracking-tight">
-              Raindrop Graph
+              Mindverse
             </CardTitle>
           </CardHeader>
           <CardContent className="px-8 text-muted-foreground">
-            Explore your Raindrop.io bookmarks as an interactive radial graph,
-            clustered by tag.
+            Explore your Raindrop.io bookmarks as an interactive tag network graph
           </CardContent>
         </Card>
       </section>

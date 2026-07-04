@@ -3,21 +3,13 @@
 import { SignOutButton, useClerk, useUser } from "@clerk/nextjs";
 import { useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Settings } from "lucide-react";
 import { ROUTES } from "@/app/lib/constants";
 import { AppLogo } from "@/app/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,21 +17,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type HeaderNavItem = {
-  label: string;
-  href: string;
-  match?: "exact" | "prefix";
-};
-
-const navItems: HeaderNavItem[] = [
-  { label: "Graph", href: ROUTES.DASHBOARD, match: "exact" },
-  { label: "Settings", href: ROUTES.SETTINGS, match: "prefix" },
-];
-
 export function AuthHeader() {
   const { openUserProfile } = useClerk();
   const { user, isLoaded } = useUser();
-  const pathname = usePathname();
 
   const displayName = useMemo(() => {
     if (!isLoaded) return "Loading";
@@ -63,38 +43,10 @@ export function AuthHeader() {
     return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
   }, [displayName]);
 
-  function isNavItemActive(item: HeaderNavItem) {
-    const { href, match = "exact" } = item;
-    if (match === "prefix") {
-      return pathname === href || pathname.startsWith(`${href}/`);
-    }
-    return pathname === href;
-  }
-
   return (
     <header className="border-b border-border/50 bg-background/40 shadow-sm backdrop-blur-xl backdrop-saturate-150 supports-backdrop-filter:bg-background/30">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-4 sm:gap-3 sm:px-6 lg:max-w-none lg:px-10 xl:px-14 2xl:px-20">
-        <div className="flex items-center gap-2 sm:gap-8">
-          <AppLogo href={ROUTES.DASHBOARD} />
-          <NavigationMenu viewport={false}>
-            <NavigationMenuList className="justify-start">
-              {navItems.map((item) => (
-                <NavigationMenuItem key={item.label}>
-                  <NavigationMenuLink
-                    asChild
-                    className={cn(
-                      navigationMenuTriggerStyle(),
-                      "px-2 sm:px-4",
-                      isNavItemActive(item) && "bg-accent/50 text-accent-foreground"
-                    )}
-                  >
-                    <Link href={item.href}>{item.label}</Link>
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
-        </div>
+        <AppLogo href={ROUTES.DASHBOARD} />
 
         <div className="flex items-center gap-2">
           <DropdownMenu>
@@ -120,6 +72,11 @@ export function AuthHeader() {
               </SignOutButton>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button variant="outline" size="icon" asChild>
+            <Link href={ROUTES.SETTINGS} aria-label="Settings">
+              <Settings className="size-4" />
+            </Link>
+          </Button>
           <ModeToggle />
         </div>
       </div>
