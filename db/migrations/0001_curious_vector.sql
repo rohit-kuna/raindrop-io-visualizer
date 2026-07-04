@@ -1,1 +1,0 @@
-ALTER TABLE "users" ADD COLUMN "default_view" varchar(16) DEFAULT 'network' NOT NULL;

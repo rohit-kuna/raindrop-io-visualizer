@@ -5,10 +5,10 @@ import {
   varchar,
   text,
   timestamp,
+  jsonb,
   index,
-  uniqueIndex,
-  primaryKey,
 } from "drizzle-orm/pg-core";
+import type { GraphData } from "@/lib/types";
 
 /**
  * Users table
@@ -44,122 +44,23 @@ export const users = pgTable(
 );
 
 /**
- * Collections table
- * - Mirrors a user's Raindrop.io collections
+ * User graphs table
+ * - One row per user: the fully-precomputed GraphData blob (tags, collections,
+ *   raindrops) built at sync time from the Raindrop.io API. Replaces the old
+ *   normalized collections/tags/raindrops/raindrop_tags tables entirely — a
+ *   sync just replaces this row wholesale rather than diffing individual rows.
  */
-export const collections = pgTable(
-  "collections",
-  {
-    id: serial("id").primaryKey(),
+export const userGraphs = pgTable("user_graphs", {
+  id: serial("id").primaryKey(),
 
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
 
-    // Raindrop.io's own collection id
-    raindropCollectionId: integer("raindrop_collection_id").notNull(),
+  graphJson: jsonb("graph_json").$type<GraphData>().notNull(),
 
-    title: varchar("title", { length: 255 }).notNull(),
-
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    uniqueIndex("collections_user_raindrop_id_idx").on(
-      table.userId,
-      table.raindropCollectionId
-    ),
-    index("collections_user_id_idx").on(table.userId),
-  ]
-);
-
-/**
- * Tags table
- * - Raindrop tags are plain strings scoped per user (no native id)
- */
-export const tags = pgTable(
-  "tags",
-  {
-    id: serial("id").primaryKey(),
-
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-
-    name: varchar("name", { length: 255 }).notNull(),
-  },
-  (table) => [
-    uniqueIndex("tags_user_name_idx").on(table.userId, table.name),
-    index("tags_user_id_idx").on(table.userId),
-  ]
-);
-
-/**
- * Raindrops table
- * - One row per saved bookmark
- */
-export const raindrops = pgTable(
-  "raindrops",
-  {
-    id: serial("id").primaryKey(),
-
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-
-    // Raindrop.io's own raindrop id
-    raindropId: integer("raindrop_id").notNull(),
-
-    title: varchar("title", { length: 1024 }).notNull(),
-    link: text("link").notNull(),
-    excerpt: text("excerpt"),
-    domain: varchar("domain", { length: 255 }),
-    cover: text("cover"),
-    type: varchar("type", { length: 32 }),
-
-    collectionId: integer("collection_id").references(() => collections.id, {
-      onDelete: "set null",
-    }),
-
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-    lastUpdate: timestamp("last_update", { withTimezone: true }).notNull(),
-    syncedAt: timestamp("synced_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    uniqueIndex("raindrops_user_raindrop_id_idx").on(
-      table.userId,
-      table.raindropId
-    ),
-    index("raindrops_user_id_idx").on(table.userId),
-    index("raindrops_collection_id_idx").on(table.collectionId),
-  ]
-);
-
-/**
- * Raindrop <-> Tag join table (many-to-many)
- * - userId is denormalized here so tag-first graph queries don't need a join
- */
-export const raindropTags = pgTable(
-  "raindrop_tags",
-  {
-    raindropId: integer("raindrop_id")
-      .notNull()
-      .references(() => raindrops.id, { onDelete: "cascade" }),
-
-    tagId: integer("tag_id")
-      .notNull()
-      .references(() => tags.id, { onDelete: "cascade" }),
-
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-  },
-  (table) => [
-    primaryKey({ columns: [table.raindropId, table.tagId] }),
-    index("raindrop_tags_user_tag_idx").on(table.userId, table.tagId),
-    index("raindrop_tags_tag_id_idx").on(table.tagId),
-  ]
-);
+  lastSync: timestamp("last_sync", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

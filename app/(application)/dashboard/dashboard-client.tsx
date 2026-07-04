@@ -20,7 +20,6 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTagIds, setActiveTagIds] = useState<Set<number>>(new Set());
-  const [collectionId, setCollectionId] = useState<number | null>(null);
   const [activeView, setActiveView] = useState<ViewMode>(initialView);
   const [hovered, setHovered] = useState<{ raindrop: PositionedRaindrop; x: number; y: number } | null>(
     null
@@ -44,20 +43,19 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
   const graphData = data ?? EMPTY_DATA;
 
   const matchingRaindropIds = useMemo(() => {
-    const hasFilters = searchQuery.trim() !== "" || activeTagIds.size > 0 || collectionId !== null;
+    const hasFilters = searchQuery.trim() !== "" || activeTagIds.size > 0;
     if (!hasFilters) return null;
 
     const query = searchQuery.trim().toLowerCase();
     const matches = new Set<number>();
     for (const r of graphData.raindrops) {
-      if (collectionId !== null && r.collectionId !== collectionId) continue;
       if (activeTagIds.size > 0 && !r.tagIds.some((id) => activeTagIds.has(id))) continue;
       if (query && !r.title.toLowerCase().includes(query) && !r.excerpt?.toLowerCase().includes(query))
         continue;
       matches.add(r.id);
     }
     return matches;
-  }, [graphData.raindrops, searchQuery, activeTagIds, collectionId]);
+  }, [graphData.raindrops, searchQuery, activeTagIds]);
 
   function toggleTagFilter(tagId: number) {
     setActiveTagIds((prev) => {
@@ -99,14 +97,11 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
     <div className="flex h-[calc(100vh-73px)] w-full">
       <SearchFilter
         tags={graphData.tags}
-        collections={graphData.collections}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         activeTagIds={activeTagIds}
         onToggleTagFilter={toggleTagFilter}
         onClearTagFilters={() => setActiveTagIds(new Set())}
-        collectionId={collectionId}
-        onCollectionChange={setCollectionId}
       />
 
       <div className="relative min-w-0 flex-1 overflow-hidden">

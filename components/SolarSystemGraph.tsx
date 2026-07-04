@@ -435,7 +435,16 @@ export function SolarSystemGraph({
         cooldownTime={Infinity}
         d3AlphaDecay={0.005}
         d3VelocityDecay={VELOCITY_DECAY}
-        warmupTicks={100}
+        // `warmupTicks` runs synchronously the instant `graphData` is set, using whatever
+        // forces are registered on the engine at that exact moment — which is only the
+        // library's bare defaults, since our custom charge/collide/gravity/orbit forces get
+        // attached afterward in the effect below (has to wait for the ref to a next/dynamic,
+        // ssr:false component). With no "orbit" force yet, that warmup scatters suns/planets
+        // with no orbit constraint at all, baking in the clustered/overlapping-rings mess seen
+        // on first load. Skipping the warmup here (0) leaves nodes at their fresh initial
+        // positions instead; d3ReheatSimulation() + cooldownTime=Infinity below then animate
+        // them into the correct layout live, once the real forces are in place.
+        warmupTicks={0}
         enableNodeDrag={true}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
