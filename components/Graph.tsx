@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 import { forceCollide, forceManyBody } from "d3-force";
 import type ForceGraph2DComponent from "react-force-graph-2d";
 import type { ForceGraphMethods, NodeObject, LinkObject } from "react-force-graph-2d";
@@ -9,6 +10,7 @@ import {
   computeTagNetwork,
   buildNeighborIndex,
   makeLinkWidthScale,
+  tagNodeId,
   RAINDROP_DOT_RADIUS,
   MEMBERSHIP_LINK_WIDTH,
   MEMBERSHIP_LINK_OPACITY,
@@ -18,6 +20,8 @@ import {
   type RaindropNode,
 } from "@/lib/layout/tagNetwork";
 import type { GraphData, PositionedRaindrop } from "@/lib/types";
+import { useContainerSize } from "@/lib/hooks/useContainerSize";
+import { fitCircleLabelFontSize } from "@/lib/canvas/fitCircleLabel";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
@@ -62,6 +66,16 @@ export function Graph({
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<ForceGraphMethods<TagNetworkNode, TagNetworkLink> | undefined>(undefined);
   const [hoveredNode, setHoveredNode] = useState<TagNetworkNode | null>(null);
+  const { width, height } = useContainerSize(containerRef);
+  const { resolvedTheme } = useTheme();
+  // The canvas background follows the page theme, so link lines need to flip too — white lines
+  // are invisible against the light-mode background.
+  const lineRgb = resolvedTheme === "light" ? "0,0,0" : "255,255,255";
+  // Hovered nodes get a solid highlight fill — white reads fine on the dark canvas but
+  // disappears on light-mode's light background, so flip to near-black there. The label color
+  // then flips opposite so the tag name stays readable against whichever fill is used.
+  const hoverFillColor = resolvedTheme === "light" ? "#111111" : "#ffffff";
+  const hoverLabelColor = resolvedTheme === "light" ? "#ffffff" : "#111111";
 
   const network = useMemo(() => computeTagNetwork(data), [data]);
   const { neighborsByNodeId, linksByNodeId } = useMemo(() => buildNeighborIndex(network), [network]);
@@ -71,6 +85,55 @@ export function Graph({
     );
     return makeLinkWidthScale(cooccurrenceLinks);
   }, [network.links]);
+
+  // When one or more tags are selected, the selected tag(s) and their own raindrops (via
+  // membership links) are "in focus" at full opacity, with those membership connection lines
+  // drawn in. Tags one hop away via a cooccurrence link are shown as subtly-highlighted circles,
+  // without a connecting line. Everything else fades to a faint ghost.
+  const selectedTagIds = useMemo(() => {
+    if (!activeTagIds || activeTagIds.size === 0) return null;
+    return new Set([...activeTagIds].map(tagNodeId));
+  }, [activeTagIds]);
+
+  function linkEndpointIds(link: TagNetworkLink): [string, string] {
+    const sourceId = typeof link.source === "string" ? link.source : (link.source as { id: string }).id;
+    const targetId = typeof link.target === "string" ? link.target : (link.target as { id: string }).id;
+    return [sourceId, targetId];
+  }
+
+  const selectionRelevantNodeIds = useMemo(() => {
+    if (!selectedTagIds) return null;
+    const ids = new Set<string>(selectedTagIds);
+    for (const link of network.links) {
+      if (link.kind !== "membership") continue;
+      const [sourceId, targetId] = linkEndpointIds(link);
+      if (selectedTagIds.has(targetId)) ids.add(sourceId);
+    }
+    return ids;
+  }, [selectedTagIds, network.links]);
+
+  const selectionRelatedTagIds = useMemo(() => {
+    if (!selectedTagIds) return null;
+    const related = new Set<string>();
+    for (const link of network.links) {
+      if (link.kind !== "cooccurrence") continue;
+      const [sourceId, targetId] = linkEndpointIds(link);
+      if (selectedTagIds.has(sourceId) && !selectedTagIds.has(targetId)) related.add(targetId);
+      else if (selectedTagIds.has(targetId) && !selectedTagIds.has(sourceId)) related.add(sourceId);
+    }
+    return related;
+  }, [selectedTagIds, network.links]);
+
+  // Only the selected tag's own membership links stay drawn in; cooccurrence links to related
+  // tags are fully faded — related tags are shown as subtly-highlighted circles without a
+  // connecting line, to keep the focused view uncluttered.
+  const linkFocusTier = useCallback(
+    (link: TagNetworkLink): "primary" | "faded" => {
+      const [, targetId] = linkEndpointIds(link);
+      return link.kind === "membership" && selectedTagIds!.has(targetId) ? "primary" : "faded";
+    },
+    [selectedTagIds]
+  );
 
   useEffect(() => {
     // ForceGraph2D is a next/dynamic (ssr:false) component, so it can still be mounting
@@ -119,12 +182,19 @@ export function Graph({
     };
   }, [network]);
 
+  const isNodeRelated = useCallback(
+    (node: TagNetworkNode): boolean => {
+      return node.kind === "tag" && (selectionRelatedTagIds?.has(node.id) ?? false);
+    },
+    [selectionRelatedTagIds]
+  );
+
   const isNodeDimmed = useCallback(
     (node: TagNetworkNode): boolean => {
       if (node.kind === "raindrop" && matchingRaindropIds !== null && !matchingRaindropIds.has(node.raindropId)) {
         return true;
       }
-      if (node.kind === "tag" && activeTagIds !== null && activeTagIds.size > 0 && !activeTagIds.has(node.tagId)) {
+      if (selectionRelevantNodeIds && !selectionRelevantNodeIds.has(node.id) && !isNodeRelated(node)) {
         return true;
       }
       if (hoveredNode && node.id !== hoveredNode.id) {
@@ -133,7 +203,7 @@ export function Graph({
       }
       return false;
     },
-    [activeTagIds, matchingRaindropIds, hoveredNode, neighborsByNodeId]
+    [selectionRelevantNodeIds, isNodeRelated, matchingRaindropIds, hoveredNode, neighborsByNodeId]
   );
 
   const isLinkHighlighted = useCallback(
@@ -145,58 +215,66 @@ export function Graph({
   );
 
   const nodeCanvasObject = useCallback(
-    (node: FGNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    (node: FGNode, ctx: CanvasRenderingContext2D) => {
       const n = node as unknown as TagNetworkNode & { x?: number; y?: number };
       const x = n.x ?? 0;
       const y = n.y ?? 0;
       const dimmed = isNodeDimmed(n);
+      const related = isNodeRelated(n);
       const isHovered = n.id === hoveredNode?.id;
 
       if (n.kind === "tag") {
-        ctx.globalAlpha = dimmed ? 0.25 : 1;
-        ctx.fillStyle = isHovered ? "#fff" : n.color;
+        ctx.globalAlpha = dimmed ? 0.06 : related ? 0.18 : 1;
+        ctx.fillStyle = isHovered ? hoverFillColor : n.color;
         ctx.beginPath();
         ctx.arc(x, y, n.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        if (isHovered || globalScale > 2) {
-          ctx.globalAlpha = dimmed ? 0.4 : 1;
-          ctx.fillStyle = "#fff";
-          ctx.font = `${12 / globalScale}px sans-serif`;
+        if (n.radius > 6) {
+          const fontSize = fitCircleLabelFontSize(ctx, n.name, n.radius);
+          ctx.globalAlpha = dimmed ? 0.15 : related ? 0.35 : 1;
+          ctx.fillStyle = isHovered ? hoverLabelColor : "#fff";
+          ctx.font = `600 ${fontSize}px sans-serif`;
           ctx.textAlign = "center";
-          ctx.fillText(n.name, x, y - n.radius - 4 / globalScale);
+          ctx.textBaseline = "middle";
+          ctx.fillText(n.name, x, y, n.radius * 1.7);
         }
       } else {
-        ctx.globalAlpha = dimmed ? 0.15 : 0.85;
-        ctx.fillStyle = isHovered ? "#fff" : "#a3a3a3";
+        ctx.globalAlpha = dimmed ? 0.04 : 0.85;
+        ctx.fillStyle = isHovered ? hoverFillColor : "#a3a3a3";
         ctx.beginPath();
         ctx.arc(x, y, isHovered ? RAINDROP_DOT_RADIUS + 1.5 : RAINDROP_DOT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
     },
-    [hoveredNode, isNodeDimmed]
+    [hoveredNode, isNodeDimmed, isNodeRelated, hoverFillColor, hoverLabelColor]
   );
 
   const linkWidth = useCallback(
     (link: FGLink) => {
       const l = link as unknown as TagNetworkLink;
-      if (l.kind === "membership") return MEMBERSHIP_LINK_WIDTH;
-      const base = linkWidthScale(l.weight);
+      const base = l.kind === "membership" ? MEMBERSHIP_LINK_WIDTH : linkWidthScale(l.weight);
+      if (selectedTagIds) {
+        return linkFocusTier(l) === "primary" ? 1.2 : base * 0.4;
+      }
       return isLinkHighlighted(l) ? base + 2 : base;
     },
-    [linkWidthScale, isLinkHighlighted]
+    [linkWidthScale, selectedTagIds, linkFocusTier, isLinkHighlighted]
   );
 
   const linkColor = useCallback(
     (link: FGLink) => {
       const l = link as unknown as TagNetworkLink;
-      if (l.kind === "membership") {
-        return isLinkHighlighted(l) ? "rgba(255,255,255,0.6)" : `rgba(255,255,255,${MEMBERSHIP_LINK_OPACITY})`;
+      if (selectedTagIds) {
+        return linkFocusTier(l) === "primary" ? `rgba(${lineRgb},0.5)` : `rgba(${lineRgb},0.02)`;
       }
-      return isLinkHighlighted(l) ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.35)";
+      if (l.kind === "membership") {
+        return isLinkHighlighted(l) ? `rgba(${lineRgb},0.6)` : `rgba(${lineRgb},${MEMBERSHIP_LINK_OPACITY})`;
+      }
+      return isLinkHighlighted(l) ? `rgba(${lineRgb},0.9)` : `rgba(${lineRgb},0.35)`;
     },
-    [isLinkHighlighted]
+    [selectedTagIds, linkFocusTier, isLinkHighlighted, lineRgb]
   );
 
   const handleNodeHover = useCallback(
@@ -243,6 +321,8 @@ export function Graph({
     <div ref={containerRef} className="relative h-full w-full">
       <ForceGraph2D<TagNetworkNode, TagNetworkLink>
         ref={fgRef}
+        width={width}
+        height={height}
         graphData={network as unknown as { nodes: FGNode[]; links: FGLink[] }}
         nodeId="id"
         nodeVal="val"

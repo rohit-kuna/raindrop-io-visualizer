@@ -8,7 +8,12 @@ export default async function ApplicationLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentDbUser();
+  let user;
+  try {
+    user = await getCurrentDbUser();
+  } catch {
+    redirect(ROUTES.SERVICE_UNAVAILABLE);
+  }
   if (!user) redirect(ROUTES.SIGN_IN);
 
   return (

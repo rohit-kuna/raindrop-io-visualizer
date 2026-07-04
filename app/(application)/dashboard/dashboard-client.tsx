@@ -109,7 +109,7 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
         onCollectionChange={setCollectionId}
       />
 
-      <div className="relative flex-1">
+      <div className="relative min-w-0 flex-1 overflow-hidden">
         <div className="absolute right-4 top-4 z-10 flex gap-2">
           <ViewSwitcher view={activeView} onChange={setActiveView} />
           <SyncButton onSynced={fetchGraph} />
@@ -119,10 +119,14 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
           <div className="flex h-full items-center justify-center">
             <Spinner className="size-6" />
           </div>
-        ) : activeView === "network" ? (
-          <Graph {...sharedGraphProps} />
         ) : (
-          <SolarSystemGraph {...sharedGraphProps} />
+          <div key={activeView} className="h-full w-full animate-in fade-in duration-300 ease-out">
+            {activeView === "network" ? (
+              <Graph {...sharedGraphProps} />
+            ) : (
+              <SolarSystemGraph {...sharedGraphProps} />
+            )}
+          </div>
         )}
 
         {hovered ? (

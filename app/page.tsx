@@ -8,7 +8,15 @@ import { ModeToggle } from "@/components/ui/mode-toggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function HomePage() {
-  const user = await getCurrentDbUser();
+  // If the DB is unreachable, fall back to rendering the landing page rather than
+  // erroring out — an unauthenticated visitor shouldn't see a crash page over a
+  // backend hiccup they have no way to act on.
+  let user = null;
+  try {
+    user = await getCurrentDbUser();
+  } catch {
+    user = null;
+  }
 
   if (user) {
     redirect(ROUTES.DASHBOARD);
