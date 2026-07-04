@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ type SearchFilterProps = {
   activeTagIds: Set<number>;
   onToggleTagFilter: (tagId: number) => void;
   onClearTagFilters: () => void;
+  onClose?: () => void;
 };
 
 export function SearchFilter({
@@ -21,13 +23,27 @@ export function SearchFilter({
   activeTagIds,
   onToggleTagFilter,
   onClearTagFilters,
+  onClose,
 }: SearchFilterProps) {
   const sortedTags = tags
     .filter((tag) => matchingTagIds === null || matchingTagIds.has(tag.id))
     .sort((a, b) => b.count - a.count);
 
   return (
-    <div className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r p-4">
+    <div className="flex h-full w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r bg-background p-4">
+      <div className="flex items-center gap-2 md:hidden">
+        <span className="text-sm font-medium">Filters</span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="ml-auto"
+          onClick={onClose}
+          aria-label="Close tags panel"
+        >
+          <X className="size-4" />
+        </Button>
+      </div>
+
       <Input
         placeholder="Search titles, excerpts..."
         value={searchQuery}

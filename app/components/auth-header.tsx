@@ -73,8 +73,8 @@ export function AuthHeader() {
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-6 py-4 lg:max-w-none lg:px-10 xl:px-14 2xl:px-20">
-        <div className="flex items-center gap-8">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-4 sm:gap-3 sm:px-6 lg:max-w-none lg:px-10 xl:px-14 2xl:px-20">
+        <div className="flex items-center gap-2 sm:gap-8">
           <AppLogo href={ROUTES.DASHBOARD} />
           <NavigationMenu viewport={false}>
             <NavigationMenuList className="justify-start">
@@ -84,6 +84,7 @@ export function AuthHeader() {
                     asChild
                     className={cn(
                       navigationMenuTriggerStyle(),
+                      "px-2 sm:px-4",
                       isNavItemActive(item) && "bg-accent/50 text-accent-foreground"
                     )}
                   >
@@ -98,7 +99,7 @@ export function AuthHeader() {
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="max-w-56 justify-start gap-2">
+              <Button variant="outline" className="max-w-56 justify-start gap-2 px-2 sm:px-3">
                 {isLoaded ? (
                   <Avatar size="sm">
                     <AvatarImage src={user?.imageUrl} alt={displayName} />
@@ -107,7 +108,7 @@ export function AuthHeader() {
                 ) : (
                   <Spinner className="size-4" />
                 )}
-                <span className="truncate text-sm">{displayName}</span>
+                <span className="hidden truncate text-sm sm:inline">{displayName}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

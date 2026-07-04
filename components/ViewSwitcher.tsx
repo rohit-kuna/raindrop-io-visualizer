@@ -25,7 +25,7 @@ export function ViewSwitcher({ view, onChange }: { view: ViewMode; onChange: (v:
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`relative z-10 cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-300 ${
+          className={`relative z-10 cursor-pointer rounded-full px-2 py-1.5 text-xs font-medium whitespace-nowrap transition-colors duration-300 sm:px-3 sm:text-sm ${
             view === option.value
               ? "text-background"
               : "text-muted-foreground hover:text-foreground"

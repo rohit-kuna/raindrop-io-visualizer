@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Menu } from "lucide-react";
 import { Graph } from "@/components/Graph";
 import { SolarSystemGraph } from "@/components/SolarSystemGraph";
 import { PreviewCard } from "@/components/PreviewCard";
@@ -11,6 +12,7 @@ import { ViewSwitcher, type ViewMode } from "@/components/ViewSwitcher";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ROUTES } from "@/app/lib/constants";
+import { cn } from "@/lib/utils";
 import type { GraphData, GraphRaindrop, PositionedRaindrop } from "@/lib/types";
 
 const EMPTY_DATA: GraphData = { tags: [], collections: [], raindrops: [] };
@@ -25,6 +27,7 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTagIds, setActiveTagIds] = useState<Set<number>>(new Set());
   const [activeView, setActiveView] = useState<ViewMode>(initialView);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [hovered, setHovered] = useState<{ raindrop: PositionedRaindrop; x: number; y: number } | null>(
     null
   );
@@ -122,19 +125,45 @@ export function DashboardClient({ initialView }: { initialView: ViewMode }) {
   };
 
   return (
-    <div className="flex h-[calc(100vh-73px)] w-full">
-      <SearchFilter
-        tags={graphData.tags}
-        matchingTagIds={matchingTagIds}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        activeTagIds={activeTagIds}
-        onToggleTagFilter={toggleTagFilter}
-        onClearTagFilters={() => setActiveTagIds(new Set())}
-      />
+    <div className="relative flex h-[calc(100vh-73px)] w-full overflow-hidden">
+      {isSidebarOpen ? (
+        <div
+          className="fixed inset-0 top-[73px] z-20 bg-black/50 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      ) : null}
+
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 top-[73px] z-30 h-[calc(100vh-73px)] transition-transform duration-200 ease-in-out md:static md:z-auto md:h-full md:translate-x-0",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <SearchFilter
+          tags={graphData.tags}
+          matchingTagIds={matchingTagIds}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          activeTagIds={activeTagIds}
+          onToggleTagFilter={toggleTagFilter}
+          onClearTagFilters={() => setActiveTagIds(new Set())}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+      </div>
 
       <div className="relative min-w-0 flex-1 overflow-hidden">
-        <div className="absolute right-4 top-4 z-10 flex gap-2">
+        <div className="absolute left-4 top-4 z-10 md:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsSidebarOpen(true)}
+            aria-label="Open tags panel"
+          >
+            <Menu className="size-4" />
+          </Button>
+        </div>
+
+        <div className="absolute right-2 top-4 z-10 flex gap-1 sm:right-4 sm:gap-2">
           <ViewSwitcher view={activeView} onChange={setActiveView} />
           <SyncButton onSynced={fetchGraph} />
         </div>

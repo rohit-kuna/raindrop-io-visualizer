@@ -37,7 +37,7 @@ export function SyncButton({ onSynced }: SyncButtonProps) {
   return (
     <div className="flex items-center gap-2">
       {lastSyncedAt ? (
-        <span className="text-xs text-muted-foreground">
+        <span className="hidden text-xs text-muted-foreground sm:inline">
           Synced {lastSyncedAt.toLocaleTimeString()}
         </span>
       ) : null}
