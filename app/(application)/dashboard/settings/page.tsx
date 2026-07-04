@@ -15,21 +15,12 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Raindrop.io account</CardTitle>
           <CardDescription>
-            Connect a Raindrop.io{" "}
-            <a
-              href="https://app.raindrop.io/settings/integrations"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-2"
-            >
-              test token
-            </a>{" "}
-            to sync and visualize your own bookmarks. The token is encrypted before it&apos;s
-            stored.
+            Connect your Raindrop.io account to sync and visualize your own bookmarks. Tokens
+            are encrypted before they&apos;re stored.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TokenForm initiallyConnected={Boolean(user.raindropToken)} />
+          <TokenForm initiallyConnected={Boolean(user.raindropAccessToken)} />
         </CardContent>
       </Card>
 

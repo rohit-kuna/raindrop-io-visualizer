@@ -3,30 +3,11 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  saveRaindropToken,
-  disconnectRaindropToken,
-} from "@/app/actions/raindrop/token.actions";
+import { disconnectRaindropToken } from "@/app/actions/raindrop/token.actions";
 
 export function TokenForm({ initiallyConnected }: { initiallyConnected: boolean }) {
   const [connected, setConnected] = useState(initiallyConnected);
-  const [token, setToken] = useState("");
   const [isPending, startTransition] = useTransition();
-
-  function handleSave() {
-    if (!token.trim()) return;
-    startTransition(async () => {
-      try {
-        await saveRaindropToken(token);
-        setToken("");
-        setConnected(true);
-        toast.success("Raindrop account connected");
-      } catch {
-        toast.error("Failed to save token");
-      }
-    });
-  }
 
   function handleDisconnect() {
     startTransition(async () => {
@@ -55,15 +36,11 @@ export function TokenForm({ initiallyConnected }: { initiallyConnected: boolean 
 
   return (
     <div className="flex flex-col gap-3">
-      <Input
-        type="password"
-        placeholder="Paste your Raindrop.io test token"
-        value={token}
-        onChange={(e) => setToken(e.target.value)}
-        autoComplete="off"
-      />
-      <Button onClick={handleSave} disabled={isPending || !token.trim()}>
-        Connect
+      <p className="text-sm text-muted-foreground">
+        Connect your Raindrop.io account to sync your bookmarks.
+      </p>
+      <Button asChild>
+        <a href="/api/raindrop/connect">Connect with Raindrop</a>
       </Button>
     </div>
   );

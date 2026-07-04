@@ -13,8 +13,10 @@ import type { GraphData } from "@/lib/types";
 /**
  * Users table
  * - One row per Clerk user
- * - raindropToken is the user's personal Raindrop.io "test token", AES-256-GCM
- *   encrypted at rest (see lib/crypto.ts). Null until they connect their account.
+ * - raindropAccessToken/raindropRefreshToken are OAuth2 tokens from Raindrop.io's
+ *   authorization-code flow, AES-256-GCM encrypted at rest (see lib/crypto.ts).
+ *   raindropTokenExpiresAt tracks the access token's expiry so it can be
+ *   refreshed lazily (see lib/raindrop-tokens.ts). All null until connected.
  */
 export const users = pgTable(
   "users",
@@ -28,7 +30,9 @@ export const users = pgTable(
 
     email: varchar("email", { length: 255 }).notNull(),
 
-    raindropToken: text("raindrop_token"),
+    raindropAccessToken: text("raindrop_access_token"),
+    raindropRefreshToken: text("raindrop_refresh_token"),
+    raindropTokenExpiresAt: timestamp("raindrop_token_expires_at", { withTimezone: true }),
 
     defaultView: varchar("default_view", { length: 16 }).default("network").notNull(),
 

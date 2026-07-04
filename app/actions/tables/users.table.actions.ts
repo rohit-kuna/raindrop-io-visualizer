@@ -6,7 +6,9 @@ import { eq } from "drizzle-orm";
 
 type UpdateUserInput = Partial<{
   email: string;
-  raindropToken: string | null;
+  raindropAccessToken: string | null;
+  raindropRefreshToken: string | null;
+  raindropTokenExpiresAt: Date | null;
   defaultView: string;
 }>;
 

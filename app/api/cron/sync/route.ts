@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { decryptToken } from "@/lib/crypto";
+import { getValidAccessToken } from "@/lib/raindrop-tokens";
 import { runSync } from "@/lib/sync";
 
 export const maxDuration = 60;
@@ -16,11 +16,11 @@ export async function GET(request: Request) {
   const connectedUsers = await db
     .select()
     .from(users)
-    .where(isNotNull(users.raindropToken));
+    .where(isNotNull(users.raindropAccessToken));
 
   const results = await Promise.allSettled(
     connectedUsers.map(async (user) => {
-      const token = decryptToken(user.raindropToken!);
+      const token = await getValidAccessToken(user);
       return runSync(user.id, token);
     })
   );

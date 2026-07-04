@@ -1,5 +1,5 @@
 {
-  "id": "57e267f9-559d-4a6e-b72f-f4556bc543e0",
+  "id": "baff7921-6c19-4e13-a91f-ae60706ab8f2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -86,9 +86,21 @@
           "primaryKey": false,
           "notNull": true
         },
-        "raindrop_token": {
-          "name": "raindrop_token",
+        "raindrop_access_token": {
+          "name": "raindrop_access_token",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raindrop_refresh_token": {
+          "name": "raindrop_refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raindrop_token_expires_at": {
+          "name": "raindrop_token_expires_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

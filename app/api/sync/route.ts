@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/app/lib/auth";
-import { decryptToken } from "@/lib/crypto";
+import { getValidAccessToken } from "@/lib/raindrop-tokens";
 import { runSync } from "@/lib/sync";
 
 export const maxDuration = 60;
@@ -8,7 +8,7 @@ export const maxDuration = 60;
 export async function POST() {
   const user = await requireUser();
 
-  if (!user.raindropToken) {
+  if (!user.raindropAccessToken) {
     return NextResponse.json(
       { error: "Connect your Raindrop account in Settings first." },
       { status: 400 }
@@ -16,7 +16,7 @@ export async function POST() {
   }
 
   try {
-    const token = decryptToken(user.raindropToken);
+    const token = await getValidAccessToken(user);
     const result = await runSync(user.id, token);
     return NextResponse.json(result);
   } catch (err) {
