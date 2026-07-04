@@ -44,7 +44,7 @@ export function AuthHeader() {
   }, [displayName]);
 
   return (
-    <header className="border-b border-border/50 bg-background/40 shadow-sm backdrop-blur-xl backdrop-saturate-150 supports-backdrop-filter:bg-background/30">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-border/50 bg-background/80 shadow-sm backdrop-blur">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-4 sm:gap-3 sm:px-6 lg:max-w-none lg:px-10 xl:px-14 2xl:px-20">
         <AppLogo href={ROUTES.DASHBOARD} />
 

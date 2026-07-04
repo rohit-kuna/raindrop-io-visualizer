@@ -1,4 +1,4 @@
-import { ChevronLeft, X } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ export function SearchFilter({
           onClick={onClose}
           aria-label="Close tags panel"
         >
-          <X className="size-4" />
+          <ChevronLeft className="size-4" />
         </Button>
       </div>
 

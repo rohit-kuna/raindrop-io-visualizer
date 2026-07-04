@@ -6,7 +6,7 @@ export default async function SettingsPage() {
   const user = await requireUser();
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-73px)] w-full max-w-2xl flex-col gap-6 p-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6 pt-18.25">
       <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
 
       <Card>
