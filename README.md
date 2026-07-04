@@ -1,53 +1,73 @@
-# next-fs-template-simple
+# Raindrop Graph
 
-Next.js App Router template with:
-- Clerk authentication
-- App-level role authorization (`USER` / `ADMIN`)
-- Drizzle + Postgres user table keyed by Clerk user id
+Explore your [Raindrop.io](https://raindrop.io) bookmarks as an interactive radial graph:
+tags are colored cluster nodes arranged in a circle, raindrops are dots pulled toward the
+centroid of their tag(s). Hover a dot for a preview, hover/click a tag to filter, search
+across titles and excerpts.
+
+Built with Next.js (App Router, TypeScript), Drizzle + Postgres, Clerk auth, and a
+one-shot `d3-force` layout rendered on a single `<canvas>`.
 
 ## Setup
 
-1. Copy envs and fill Clerk keys:
+1. Copy envs and fill them in (see below):
 
 ```bash
 cp .env.example .env.local
 ```
 
-2. Start Postgres (optional helper):
+2. Start Postgres (optional local helper — Supabase/any Postgres works too):
 
 ```bash
 npm run dockerup
 ```
 
-3. Run app:
+3. Push the schema:
+
+```bash
+npm run drizzle-push
+```
+
+4. Run the app:
 
 ```bash
 npm run dev
 ```
 
+5. Sign up (Clerk), then go to **Settings** and paste a Raindrop.io
+   [test token](https://app.raindrop.io/settings/integrations) to connect your account.
+   Click **Sync** on the graph page to pull your bookmarks in.
+
 ## Required Environment Variables
 
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `CLERK_SECRET_KEY`
-- `DATABASE_URL`
+See `.env.example`:
 
-Without Clerk keys, build/runtime will fail when `ClerkProvider` initializes.
+- `DATABASE_URL` — Postgres connection string
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — Clerk auth
+- `TOKEN_ENCRYPTION_KEY` — 32-byte hex key encrypting each user's stored Raindrop token
+  (`openssl rand -hex 32`)
+- `CRON_SECRET` — verifies Vercel Cron's calls to `/api/cron/sync`
 
-## Auth + Role Flow
+## Auth & data model
 
-- Clerk session protection is enforced in `middleware.ts` for non-public routes.
-- Public routes:
-  - `/`
-  - `/sign-in`
-  - `/sign-up`
-- DB user sync is performed in `app/lib/user-sync.ts` on first authenticated access.
-- Role checks happen in `app/lib/auth.ts`:
-  - `requireUser()`
-  - `requireAdmin()`
+- Clerk protects every route except `/`, `/sign-in`, `/sign-up`, and `/api/cron/*`
+  (enforced in `proxy.ts`, Next's middleware convention).
+- Each Clerk user gets a `users` row on first login (`app/lib/user-sync.ts`).
+- Every table (`collections`, `raindrops`, `tags`, `raindrop_tags`) is scoped by
+  `user_id` — this is a multi-user app, and each user only ever sees their own data.
+- Each user's Raindrop.io token is entered in **Settings**, encrypted with
+  `TOKEN_ENCRYPTION_KEY`, and stored on their `users` row (never displayed back).
+
+## Sync
+
+- `POST /api/sync` — syncs the signed-in user's own Raindrop collection.
+- `GET /api/cron/sync` — Vercel Cron entrypoint (see `vercel.json`), syncs every user
+  who has connected a token. Verifies `CRON_SECRET` itself since cron requests can't
+  carry a Clerk session.
 
 ## Routes
 
-- `/sign-in` and `/sign-up` are Clerk catch-all routes for App Router.
-- `/dashboard` is authenticated-user space.
-- `/admin` is admin-only space.
-- `/admin/users` is admin users table view.
+- `/` — landing page
+- `/sign-in`, `/sign-up` — Clerk auth
+- `/dashboard` — the graph
+- `/dashboard/settings` — connect/disconnect your Raindrop.io account

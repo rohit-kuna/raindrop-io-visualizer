@@ -5,7 +5,6 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ROUTES } from "@/app/lib/constants";
-import { ROLES, type AppRole } from "@/app/lib/roles";
 import { AppLogo } from "@/app/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
@@ -23,13 +22,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-type AuthHeaderProps = {
-  role: AppRole;
-};
 
 type HeaderNavItem = {
   label: string;
@@ -37,32 +31,15 @@ type HeaderNavItem = {
   match?: "exact" | "prefix";
 };
 
-const dashboardNavItems: HeaderNavItem[] = [
-  { label: "Activity", href: ROUTES.DASHBOARD_ACTIVITY, match: "prefix" },
-  { label: "Billing", href: ROUTES.DASHBOARD_BILLING, match: "prefix" },
+const navItems: HeaderNavItem[] = [
+  { label: "Graph", href: ROUTES.DASHBOARD, match: "exact" },
+  { label: "Settings", href: ROUTES.SETTINGS, match: "prefix" },
 ];
 
-const adminSectionNavItems: HeaderNavItem[] = [
-  { label: "Users", href: ROUTES.ADMIN_USERS, match: "prefix" },
-  { label: "Settings", href: ROUTES.ADMIN_SETTINGS, match: "prefix" },
-];
-
-export function AuthHeader({ role }: AuthHeaderProps) {
+export function AuthHeader() {
   const { openUserProfile } = useClerk();
   const { user, isLoaded } = useUser();
   const pathname = usePathname();
-
-  const isInAdminSection =
-    pathname === ROUTES.ADMIN || pathname.startsWith(`${ROUTES.ADMIN}/`);
-
-  const navItems =
-    role === ROLES.ADMIN
-      ? isInAdminSection
-        ? adminSectionNavItems
-        : dashboardNavItems
-      : dashboardNavItems;
-
-  const logoHref = isInAdminSection ? ROUTES.ADMIN : ROUTES.DASHBOARD;
 
   const displayName = useMemo(() => {
     if (!isLoaded) return "Loading";
@@ -88,20 +65,17 @@ export function AuthHeader({ role }: AuthHeaderProps) {
 
   function isNavItemActive(item: HeaderNavItem) {
     const { href, match = "exact" } = item;
-    if (href === "#") return false;
-
     if (match === "prefix") {
       return pathname === href || pathname.startsWith(`${href}/`);
     }
-
     return pathname === href;
   }
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-6 py-4 lg:max-w-none lg:px-10 xl:px-14 2xl:px-20">
-        <div className="flex items-center gap-8">
-          <AppLogo href={logoHref} />
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-4 sm:gap-3 sm:px-6 lg:max-w-none lg:px-10 xl:px-14 2xl:px-20">
+        <div className="flex items-center gap-2 sm:gap-8">
+          <AppLogo href={ROUTES.DASHBOARD} />
           <NavigationMenu viewport={false}>
             <NavigationMenuList className="justify-start">
               {navItems.map((item) => (
@@ -110,6 +84,7 @@ export function AuthHeader({ role }: AuthHeaderProps) {
                     asChild
                     className={cn(
                       navigationMenuTriggerStyle(),
+                      "px-2 sm:px-4",
                       isNavItemActive(item) && "bg-accent/50 text-accent-foreground"
                     )}
                   >
@@ -124,7 +99,7 @@ export function AuthHeader({ role }: AuthHeaderProps) {
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="max-w-56 justify-start gap-2">
+              <Button variant="outline" className="max-w-56 justify-start gap-2 px-2 sm:px-3">
                 {isLoaded ? (
                   <Avatar size="sm">
                     <AvatarImage src={user?.imageUrl} alt={displayName} />
@@ -133,24 +108,10 @@ export function AuthHeader({ role }: AuthHeaderProps) {
                 ) : (
                   <Spinner className="size-4" />
                 )}
-                <span className="truncate text-sm">{displayName}</span>
+                <span className="hidden truncate text-sm sm:inline">{displayName}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {role === ROLES.ADMIN ? (
-                <>
-                  {isInAdminSection ? (
-                    <DropdownMenuItem asChild>
-                      <Link href={ROUTES.DASHBOARD}>Dashboard</Link>
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem asChild>
-                      <Link href={ROUTES.ADMIN}>Admin Home</Link>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                </>
-              ) : null}
               <DropdownMenuItem onSelect={() => openUserProfile()}>
                 Profile settings
               </DropdownMenuItem>
