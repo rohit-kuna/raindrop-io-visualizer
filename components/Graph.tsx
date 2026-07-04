@@ -21,6 +21,7 @@ import {
 } from "@/lib/layout/tagNetwork";
 import type { GraphData, PositionedRaindrop } from "@/lib/types";
 import { useContainerSize } from "@/lib/hooks/useContainerSize";
+import { useSupportsHover } from "@/lib/hooks/useSupportsHover";
 import { fitCircleLabelFontSize } from "@/lib/canvas/fitCircleLabel";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
@@ -69,6 +70,7 @@ export function Graph({
   const fgRef = useRef<ForceGraphMethods<TagNetworkNode, TagNetworkLink> | undefined>(undefined);
   const [hoveredNode, setHoveredNode] = useState<TagNetworkNode | null>(null);
   const { width, height } = useContainerSize(containerRef);
+  const supportsHover = useSupportsHover();
   const { resolvedTheme } = useTheme();
   // The canvas background follows the page theme, so link lines need to flip too — white lines
   // are invisible against the light-mode background.
@@ -312,6 +314,10 @@ export function Graph({
 
   const handleNodeHover = useCallback(
     (node: FGNode | null) => {
+      // On touch devices, a tap fires this hover callback before the click callback — without
+      // this guard, the tapped node would get stuck showing the desktop "hovered" dim/highlight
+      // treatment instead of just performing the tap's click action (see useSupportsHover).
+      if (!supportsHover) return;
       const n = node as unknown as (TagNetworkNode & { x?: number; y?: number }) | null;
       setHoveredNode(n);
 
@@ -335,7 +341,7 @@ export function Graph({
         onHoverTag(n.tagId);
       }
     },
-    [onHoverRaindrop, onHoverTag]
+    [onHoverRaindrop, onHoverTag, supportsHover]
   );
 
   const handleNodeClick = useCallback(
@@ -368,7 +374,7 @@ export function Graph({
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
         warmupTicks={100}
-        enableNodeDrag={true}
+        enableNodeDrag={supportsHover}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
       />

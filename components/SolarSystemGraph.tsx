@@ -25,6 +25,7 @@ import {
 } from "@/lib/layout/tagNetwork";
 import type { GraphData, PositionedRaindrop } from "@/lib/types";
 import { useContainerSize } from "@/lib/hooks/useContainerSize";
+import { useSupportsHover } from "@/lib/hooks/useSupportsHover";
 import { fitCircleLabelFontSize } from "@/lib/canvas/fitCircleLabel";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
@@ -88,6 +89,7 @@ export function SolarSystemGraph({
   const fgRef = useRef<ForceGraphMethods<SolarSystemNode, SolarLink> | undefined>(undefined);
   const [hoveredNode, setHoveredNode] = useState<SolarSystemNode | null>(null);
   const { width, height } = useContainerSize(containerRef);
+  const supportsHover = useSupportsHover();
   const { resolvedTheme } = useTheme();
   // The canvas background follows the page theme, so link/orbit lines need to flip too — white
   // lines are invisible against the light-mode background.
@@ -413,6 +415,10 @@ export function SolarSystemGraph({
 
   const handleNodeHover = useCallback(
     (node: FGNode | null) => {
+      // On touch devices, a tap fires this hover callback before the click callback — without
+      // this guard, the tapped node would get stuck showing the desktop "hovered" dim/highlight
+      // treatment instead of just performing the tap's click action (see useSupportsHover).
+      if (!supportsHover) return;
       const n = node as unknown as (SolarSystemNode & PositionedFGNode) | null;
       setHoveredNode(n);
 
@@ -436,7 +442,7 @@ export function SolarSystemGraph({
         onHoverTag(n.tagId);
       }
     },
-    [onHoverRaindrop, onHoverTag]
+    [onHoverRaindrop, onHoverTag, supportsHover]
   );
 
   const handleNodeClick = useCallback(
@@ -478,7 +484,7 @@ export function SolarSystemGraph({
         // positions instead; d3ReheatSimulation() + cooldownTime=Infinity below then animate
         // them into the correct layout live, once the real forces are in place.
         warmupTicks={0}
-        enableNodeDrag={true}
+        enableNodeDrag={false}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
       />
