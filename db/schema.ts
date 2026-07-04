@@ -30,6 +30,8 @@ export const users = pgTable(
 
     raindropToken: text("raindrop_token"),
 
+    defaultView: varchar("default_view", { length: 16 }).default("network").notNull(),
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

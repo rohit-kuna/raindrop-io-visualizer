@@ -73,29 +73,50 @@ export function Graph({
   }, [network.links]);
 
   useEffect(() => {
-    const fg = fgRef.current;
-    if (!fg) return;
-    fg.d3Force(
-      "charge",
-      forceManyBody<FGNode>().strength((n) => ((n as unknown as TagNetworkNode).kind === "tag" ? -200 : -8))
-    );
-    fg.d3Force(
-      "collide",
-      forceCollide<FGNode>((n) => {
-        const node = n as unknown as TagNetworkNode;
-        return node.kind === "tag" ? node.radius + 2 : RAINDROP_DOT_RADIUS + 1;
-      })
-    );
-    const linkForce = fg.d3Force("link");
-    if (linkForce) {
-      linkForce
-        .distance((l: unknown) => ((l as TagNetworkLink).kind === "membership" ? 30 : 80))
-        .strength((l: unknown) => {
-          const link = l as TagNetworkLink;
-          return link.kind === "cooccurrence" ? Math.min(1, link.weight / 10) : 0.5;
-        });
+    // ForceGraph2D is a next/dynamic (ssr:false) component, so it can still be mounting
+    // asynchronously on this first effect run — [network] never changes again for a given
+    // `data`, so bailing out here permanently would mean the custom charge/collide/link
+    // tuning below never gets applied and the graph silently falls back to bare d3-force
+    // defaults. Retry each frame until the ref actually lands.
+    let cancelled = false;
+    let rafId: number;
+
+    function setupForces() {
+      const fg = fgRef.current;
+      if (!fg) {
+        rafId = requestAnimationFrame(setupForces);
+        return;
+      }
+      if (cancelled) return;
+
+      fg.d3Force(
+        "charge",
+        forceManyBody<FGNode>().strength((n) => ((n as unknown as TagNetworkNode).kind === "tag" ? -200 : -8))
+      );
+      fg.d3Force(
+        "collide",
+        forceCollide<FGNode>((n) => {
+          const node = n as unknown as TagNetworkNode;
+          return node.kind === "tag" ? node.radius + 2 : RAINDROP_DOT_RADIUS + 1;
+        })
+      );
+      const linkForce = fg.d3Force("link");
+      if (linkForce) {
+        linkForce
+          .distance((l: unknown) => ((l as TagNetworkLink).kind === "membership" ? 30 : 80))
+          .strength((l: unknown) => {
+            const link = l as TagNetworkLink;
+            return link.kind === "cooccurrence" ? Math.min(1, link.weight / 10) : 0.5;
+          });
+      }
+      fg.d3ReheatSimulation();
     }
-    fg.d3ReheatSimulation();
+
+    setupForces();
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+    };
   }, [network]);
 
   const isNodeDimmed = useCallback(

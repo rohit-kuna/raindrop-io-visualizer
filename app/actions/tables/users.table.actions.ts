@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 type UpdateUserInput = Partial<{
   email: string;
   raindropToken: string | null;
+  defaultView: string;
 }>;
 
 export async function getUserById(id: number) {

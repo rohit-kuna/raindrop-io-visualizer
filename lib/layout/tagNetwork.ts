@@ -115,9 +115,12 @@ export function makeLinkWidthScale(links: CooccurrenceLink[]) {
   return scaleLinear().domain([1, maxWeight]).range([MIN_LINK_WIDTH, MAX_LINK_WIDTH]).clamp(true);
 }
 
-export function buildNeighborIndex(data: TagNetworkData) {
+export function buildNeighborIndex<
+  TNode extends { id: string },
+  TLink extends { source: string | TNode; target: string | TNode }
+>(data: { nodes: TNode[]; links: TLink[] }) {
   const neighborsByNodeId = new Map<string, Set<string>>();
-  const linksByNodeId = new Map<string, Set<TagNetworkLink>>();
+  const linksByNodeId = new Map<string, Set<TLink>>();
 
   for (const node of data.nodes) {
     neighborsByNodeId.set(node.id, new Set());
@@ -125,8 +128,8 @@ export function buildNeighborIndex(data: TagNetworkData) {
   }
 
   for (const link of data.links) {
-    const sourceId = typeof link.source === "string" ? link.source : (link.source as TagNetworkNode).id;
-    const targetId = typeof link.target === "string" ? link.target : (link.target as TagNetworkNode).id;
+    const sourceId = typeof link.source === "string" ? link.source : link.source.id;
+    const targetId = typeof link.target === "string" ? link.target : link.target.id;
     neighborsByNodeId.get(sourceId)?.add(targetId);
     neighborsByNodeId.get(targetId)?.add(sourceId);
     linksByNodeId.get(sourceId)?.add(link);

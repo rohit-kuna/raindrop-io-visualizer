@@ -1,6 +1,8 @@
 import { requireUser } from "@/app/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TokenForm } from "./token-form";
+import { DefaultViewForm } from "./default-view-form";
+import type { ViewMode } from "@/app/actions/settings/view.actions";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -28,6 +30,18 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <TokenForm initiallyConnected={Boolean(user.raindropToken)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Default view</CardTitle>
+          <CardDescription>
+            Choose which visualization opens by default on the dashboard.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DefaultViewForm initialView={(user.defaultView === "solar" ? "solar" : "network") as ViewMode} />
         </CardContent>
       </Card>
     </main>
