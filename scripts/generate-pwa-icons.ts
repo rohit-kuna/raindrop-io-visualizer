@@ -110,13 +110,15 @@ async function main() {
   console.log("Wrote app/favicon.ico");
 
   // app/icon.svg — crisp scalable tab icon for modern browsers, same black bg + white mark.
+  // Uses a single <svg> with a transformed <g> (rather than a nested <svg>) since some
+  // browsers' favicon renderers don't reliably support nested <svg> elements.
   const glyphScale = 0.72;
   const inset = (canvasUnits * (1 - glyphScale)) / 2;
   const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvasUnits} ${canvasUnits}" width="64" height="64">
   <rect width="${canvasUnits}" height="${canvasUnits}" fill="${FAVICON_BACKGROUND}" rx="48" />
-  <svg x="${inset}" y="${inset}" width="${canvasUnits * glyphScale}" height="${canvasUnits * glyphScale}" viewBox="0 0 ${canvasUnits} ${canvasUnits}">
-    ${glyphPath.replace('fill="#000000"', `fill="${FAVICON_GLYPH}"`)}
-  </svg>
+  <g transform="translate(${inset} ${inset}) scale(${glyphScale})" fill="${FAVICON_GLYPH}">
+    ${glyphPath}
+  </g>
 </svg>`;
   writeFileSync(join(ROOT, "app", "icon.svg"), iconSvg);
   console.log("Wrote app/icon.svg");
